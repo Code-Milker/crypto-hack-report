@@ -28,7 +28,7 @@ export interface TransactionContext {
 export interface TransactionPathWithFailedContext {
   error: string;
 }
-export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack {}
+export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack { }
 export interface RawTransactionAttack {
   tokenSymbol: string;
   rootTransaction: string;
@@ -38,7 +38,8 @@ export interface RawTransactionMetaData {
   chain: string;
   chainId: string;
   wallet: string;
+  rpcUrl: string
 }
 export interface RawTransactionAttackWithMetaData
   extends RawTransactionMetaData,
-    RawTransactionAttack {}
+  RawTransactionAttack { }

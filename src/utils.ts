@@ -9,16 +9,20 @@ import 'dotenv/config'; // Loads .env variables into process.env
 import { transactionSchema } from './types';
 import { z } from 'zod';
 
-const provider = ethers.getDefaultProvider('homestead');
+export const createProvider = (rpcUrl: string): ethers.JsonRpcProvider => {
+  return new ethers.JsonRpcProvider(rpcUrl);
+};
 
 // ABI to fetch decimals dynamically from the token contract
 const erc20Abi = ['function decimals() view returns (uint8)'];
 
 export const fetchTransactionDetails = async (
   transactionHash: string,
+  provider: ethers.Provider
 ): Promise<
   Omit<TransactionPathWithContext, 'nextTransactions'> | TransactionPathWithFailedContext | null
 > => {
+
   try {
     // Fetch transaction details from ethers.js
     const transaction = await provider.getTransaction(transactionHash);
@@ -129,14 +133,15 @@ const decodeERC20TransferLog = (log: ethers.Log, iface: ethers.Interface) => {
 
 export const fetchTransactionPathDetails = async (
   transactionPath: TransactionPathFromAttack,
+  provider: ethers.Provider
 ): Promise<any> => {
   // Fetch details for the current transaction
-  const currentTransactionDetails = await fetchTransactionDetails(transactionPath.transactionHash);
+  const currentTransactionDetails = await fetchTransactionDetails(transactionPath.transactionHash, provider);
 
   // Recursively fetch the next transactions
   const nextTransactionDetails = [];
   for (const nextTransaction of transactionPath.nextTransactions) {
-    const nextDetail = await fetchTransactionPathDetails(nextTransaction);
+    const nextDetail = await fetchTransactionPathDetails(nextTransaction, provider);
     if (nextDetail) {
       nextTransactionDetails.push(nextDetail);
     }
