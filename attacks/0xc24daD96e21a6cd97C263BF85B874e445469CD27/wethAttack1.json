@@ -1,0 +1,168 @@
+{
+  "name": "weth1",
+  "accountThatWasDrained": "0xc24daD96e21a6cd97C263BF85B874e445469CD27",
+  "transactionsWhereFundsWent": [
+    {
+      "index": 0,
+      "transactionWithFundingTransactions": {
+        "fundingTransactions": [
+          {
+            "blockNumber": "20493314",
+            "timeStamp": "1723233875",
+            "address": "0xc24dad96e21a6cd97c263bf85b874e445469cd27",
+            "ensName": null,
+            "transactionHash": "0x8875e20371a82b6be0a1c08399327d44602858ea1fa20d7a526a6c350a5ea51f",
+            "info": "First funded 0xcB56B65F8F99eE48ce0544f62122CfC10e086C0c with 3.35 ETH",
+            "depth": 1
+          }
+        ]
+      },
+      "blockNumber": 20493252,
+      "timeStamp": 1723233131,
+      "transactionHash": "0xc2586fa2135a4a9421576690b7de3d2f20316340bf50278636c7221c402f1d3b",
+      "tokenName": "Wrapped Ether (WETH)",
+      "from": "0xc24daD96e21a6cd97C263BF85B874e445469CD27",
+      "to": "0xcB56B65F8F99eE48ce0544f62122CfC10e086C0c",
+      "tokenAmount": "0.094213904618218965"
+    },
+    {
+      "index": 2,
+      "transactionWithFundingTransactions": {
+        "fundingTransactions": [
+          {
+            "blockNumber": "20494593",
+            "timeStamp": "1723249319",
+            "address": "0xa4e5961b58dbe487639929643dcb1dc3848daf5e",
+            "ensName": null,
+            "transactionHash": "0x7b4d45b7c39e9cd1ef9b30f751d54141d6916c2511175103c8e983a36967200a",
+            "info": "First funded 0x66e612EFE56C7B21C7006b0bea01D866b381ED0a with 0.00027399 ETH",
+            "depth": 1
+          }
+        ]
+      },
+      "blockNumber": 20494584,
+      "timeStamp": 1723249199,
+      "transactionHash": "0xeea894837701ac6bc4ada0a0c2bfd653ca1b0523edd5f751fc1534a4e3422577",
+      "tokenName": "USD Coin (USDC)",
+      "from": "0xcB56B65F8F99eE48ce0544f62122CfC10e086C0c",
+      "to": "0x66e612EFE56C7B21C7006b0bea01D866b381ED0a",
+      "tokenAmount": "2965.0"
+    },
+    {
+      "index": 3,
+      "transactionWithFundingTransactions": {
+        "fundingTransactions": [
+          {
+            "blockNumber": "20426985",
+            "timeStamp": "1722434339",
+            "address": "0xa2768df0b1fb437d5d238d5d0e9b7ca584e84628",
+            "ensName": null,
+            "transactionHash": "0xc76899d2d37ea401e840c931b7738c0b5177d6c551bef8ca9d61ff2ef9ce6c07",
+            "info": "First funded 0xD72CD83aFba0dCfEFf95D463adcB2b8dEf6aA623 with 0.005 ETH",
+            "depth": 1
+          },
+          {
+            "blockNumber": "14224319",
+            "timeStamp": "1645110126",
+            "address": "0xb8bd60cd6a1108e8bf5113f4a3d27b8eadaba551",
+            "ensName": null,
+            "transactionHash": "0x85294fb846d7d7b8d04b8c8be2941f0482496a80a7242b93e94d7606abf602d2",
+            "info": "First funded 0xa2768df0b1fb437d5d238d5d0e9b7ca584e84628 with 0.17005151 ETH",
+            "depth": 2
+          },
+          {
+            "blockNumber": "9287388",
+            "timeStamp": "1579113369",
+            "address": "0x4356ff583413836ce64fe99dd8b3ef452d9add96",
+            "ensName": null,
+            "transactionHash": "0x5728ab7ad272f83e111f382d484aa3edc94aa9f2d606ee79623da7840adb62ed",
+            "info": "First funded 0xb8bd60cd6a1108e8bf5113f4a3d27b8eadaba551 with 0.1 ETH",
+            "depth": 3
+          }
+        ]
+      },
+      "blockNumber": 20494598,
+      "timeStamp": 1723249379,
+      "transactionHash": "0x84e884f614b0a5a7cb5bee8f2133e9ba908220569b0f76b681be4b993662fffc",
+      "tokenName": "USD Coin (USDC)",
+      "from": "0x66e612EFE56C7B21C7006b0bea01D866b381ED0a",
+      "to": "0xD72CD83aFba0dCfEFf95D463adcB2b8dEf6aA623",
+      "tokenAmount": "2965.0"
+    },
+    {
+      "index": 4,
+      "transactionWithFundingTransactions": {
+        "fundingTransactions": []
+      },
+      "blockNumber": 20494730,
+      "timeStamp": 1723250963,
+      "transactionHash": "0x4dc8805d99c2ad62ba9bd3f2303f010c76053d0013a1a209c7a736e96560485c",
+      "tokenName": "USD Coin (USDC)",
+      "from": "0xD72CD83aFba0dCfEFf95D463adcB2b8dEf6aA623",
+      "to": "0xFE02050c75e71CE322D8E49Bcec5727CEc2cdc26",
+      "tokenAmount": "8089.285638"
+    },
+    {
+      "index": 5,
+      "transactionWithFundingTransactions": {
+        "fundingTransactions": [
+          {
+            "blockNumber": "15149965",
+            "timeStamp": "1657924248",
+            "address": "0xfb83db3f342bffdb207c2dd9d6f890dde4d0d77c",
+            "ensName": null,
+            "transactionHash": "0x99b3d1c98141fa9ff2cd6e0936fa0c44aeee3239f2f9e906fd4e922b0bf93856",
+            "info": "First funded 0xA9D1e08C7793af67e9d92fe308d5697FB81d3E43 with 0.20728181658570216 ETH",
+            "depth": 1
+          },
+          {
+            "blockNumber": "15149954",
+            "timeStamp": "1657924059",
+            "address": "0xf535d5f8ab8ac75efe47f2e38d972f3d0891138d",
+            "ensName": null,
+            "transactionHash": "0xe0422e9c9aeaa7e3ab9e9ddb9a412f460deed309f3a3c9859c1305700a5d4a25",
+            "info": "First funded 0xfb83db3f342bffdb207c2dd9d6f890dde4d0d77c with 0.20842351658570216 ETH",
+            "depth": 2
+          },
+          {
+            "blockNumber": "13426067",
+            "timeStamp": "1634347418",
+            "address": "0x3cd751e6b0078be393132286c442345e5dc49699",
+            "ensName": null,
+            "transactionHash": "0xf032cd9575e994f5857c40bc2a76fd0d833205a050f5d57784f67d5fcf203e22",
+            "info": "First funded 0xf535d5f8ab8ac75efe47f2e38d972f3d0891138d with 0.0182201 ETH",
+            "depth": 3
+          },
+          {
+            "blockNumber": "12324275",
+            "timeStamp": "1619550896",
+            "address": "0xe85f78abb12594f3e73dc68bae19d216ba328697",
+            "ensName": null,
+            "transactionHash": "0x253fa02df0bc6785f6971b31738d9cc55e8c0cfa82dea9973c7caefa8d03d3ab",
+            "info": "First funded 0x3cd751e6b0078be393132286c442345e5dc49699 with 5.0 ETH",
+            "depth": 4
+          }
+        ]
+      },
+      "blockNumber": 20494748,
+      "timeStamp": 1723251179,
+      "transactionHash": "0xcb40c89ba73f47272a0fe9e1f921ef15e80c3d1b14bfdb90f60178f2a088abfe",
+      "tokenName": "USD Coin (USDC)",
+      "from": "0xFE02050c75e71CE322D8E49Bcec5727CEc2cdc26",
+      "to": "0xA9D1e08C7793af67e9d92fe308d5697FB81d3E43",
+      "tokenAmount": "8089.285638"
+    }
+  ],
+  "notes": [
+    "0x6c5bef6303190c36c413f1e28fb27c40fb2afe821b5ed2c7fec9acd8e5856d0c, they convert weth into usdc"
+  ],
+  "cashOut": [
+    {
+      "transactionHash": "0xcb40c89ba73f47272a0fe9e1f921ef15e80c3d1b14bfdb90f60178f2a088abfe",
+      "addressTheySentFrom": "0xFE02050c75e71CE322D8E49Bcec5727CEc2cdc26",
+      "addressOfExchange": "0xA9D1e08C7793af67e9d92fe308d5697FB81d3E43",
+      "exchange": "coinbase"
+    }
+  ],
+  "fundedBy": []
+}
