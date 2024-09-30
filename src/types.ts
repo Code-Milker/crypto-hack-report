@@ -1,8 +1,6 @@
-
-
-import { z } from 'zod'
+import { z } from 'zod';
 export const transactionSchema = z.object({
-  hash: z.string().length(66, "Invalid transaction hash"), // Transaction hash
+  hash: z.string().length(66, 'Invalid transaction hash'), // Transaction hash
   to: z.string(), // "to" can be null for contract creation transactions
   from: z.string(), // "from" is always a valid Ethereum address
   value: z.bigint(), // The value transferred in the transaction (in wei as a string)
@@ -23,13 +21,17 @@ export interface TransactionContext {
   from: string;
   timeStamp: string;
   blockNumber: number;
-  ensName?: string;  // Optional if ENS is not available
+  ensName?: string; // Optional if ENS is not available
   tokenAmount: string;
-  tokenContractAddress: string
-
+  tokenContractAddress: string;
 }
 export interface TransactionPathWithFailedContext {
-  error: string
+  error: string;
 }
-export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack {
+export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack {}
+export interface RawTransactionAttack {
+  wallet: string;
+  tokenSymbol: string;
+  rootTransaction: string;
+  transactionsPaths: string[][];
 }

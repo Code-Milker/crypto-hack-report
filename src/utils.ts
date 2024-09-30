@@ -1,12 +1,25 @@
 import { ethers } from 'ethers';
-import { TransactionPathFromAttack, TransactionPathWithContext, TransactionPathWithFailedContext } from './types';
+import {
+  TransactionPathFromAttack,
+  TransactionPathWithContext,
+  TransactionPathWithFailedContext,
+} from './types';
 import 'dotenv/config'; // Loads .env variables into process.env
 import { transactionSchema } from './types';
 import { z } from 'zod';
+
 const provider = ethers.getDefaultProvider('homestead');
+
+// ABI to fetch decimals dynamically from the token contract
+const erc20Abi = [
+  'function decimals() view returns (uint8)',
+];
+
 export const fetchTransactionDetails = async (
-  transactionHash: string
-): Promise<Omit<TransactionPathWithContext, 'nextTransactions'> | TransactionPathWithFailedContext | null> => {
+  transactionHash: string,
+): Promise<
+  Omit<TransactionPathWithContext, 'nextTransactions'> | TransactionPathWithFailedContext | null
+> => {
   try {
     // Fetch transaction details from ethers.js
     const transaction = await provider.getTransaction(transactionHash);
@@ -20,7 +33,7 @@ export const fetchTransactionDetails = async (
 
     // Create an ERC-20 interface to decode logs
     const erc20Interface = new ethers.Interface([
-      "event Transfer(address indexed from, address indexed to, uint256 value)"
+      'event Transfer(address indexed from, address indexed to, uint256 value)',
     ]);
 
     // Fetch transaction receipt (for logs)
@@ -30,15 +43,33 @@ export const fetchTransactionDetails = async (
     }
 
     // Decode token transfer details from logs
-    let tokenDetails: { tokenAddress: string; from: string; to: string; amount: string } | null = null;
+    let tokenDetails: { tokenAddress: string; from: string; to: string; amount: string } | null =
+      null;
     for (const log of receipt.logs) {
       const decodedLog = decodeERC20TransferLog(log, erc20Interface);
       if (decodedLog) {
+        const tokenAddress = log.address; // Token contract address that emitted the event
+        const from = decodedLog.from;
+        const to = decodedLog.to;
+
+        // Create a contract instance to fetch the decimals dynamically
+        const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, provider);
+        let decimals = 18; // Default to 18 decimals
+
+        try {
+          decimals = await tokenContract.decimals(); // Fetch decimals dynamically
+          console.log(decimals)
+        } catch (err) {
+          console.error(`Failed to fetch decimals for token: ${tokenAddress}`, err);
+        }
+        console.log(decodedLog.value)
+        const amount = ethers.formatUnits(decodedLog.value, decimals);
+
         tokenDetails = {
-          tokenAddress: log.address, // Token contract address that emitted the event
-          from: decodedLog.from,
-          to: decodedLog.to,
-          amount: ethers.formatUnits(decodedLog.value, 18), // Assuming 18 decimals for token amount
+          tokenAddress,
+          from,
+          to,
+          amount,
         };
         break; // Stop after the first token transfer, if relevant
       }
@@ -47,17 +78,18 @@ export const fetchTransactionDetails = async (
     // Extract ENS name (if available)
     let ensName = '';
     try {
-      ensName = await provider.lookupAddress(parsedTransaction.to) ?? '';
+      ensName = (await provider.lookupAddress(parsedTransaction.to)) ?? '';
     } catch {
       ensName = ''; // Set ENS name to empty if lookup fails
     }
 
     // Fetch the block to get the timestamp
-    const block = parsedTransaction.blockNumber ? await provider.getBlock(parsedTransaction.blockNumber) : null;
+    const block = parsedTransaction.blockNumber
+      ? await provider.getBlock(parsedTransaction.blockNumber)
+      : null;
     const timeStamp = block ? new Date(block.timestamp * 1000).toISOString() : '';
 
     // Return the structured transaction data
-    //
     return {
       transactionHash,
       to: tokenDetails?.to ?? '',
@@ -68,7 +100,6 @@ export const fetchTransactionDetails = async (
       tokenAmount: tokenDetails?.amount ?? '',
       tokenContractAddress: tokenDetails?.tokenAddress ?? '',
     };
-
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('Validation Error:', error);
@@ -84,13 +115,15 @@ export const fetchTransactionDetails = async (
 const decodeERC20TransferLog = (log: ethers.Log, iface: ethers.Interface) => {
   try {
     // Decode ERC-20 Transfer event logs
-    return iface.decodeEventLog("Transfer", log.data, log.topics);
+    return iface.decodeEventLog('Transfer', log.data, log.topics);
   } catch (error) {
     return null;
   }
 };
 
-export const fetchTransactionPathDetails = async (transactionPath: TransactionPathFromAttack): Promise<any> => {
+export const fetchTransactionPathDetails = async (
+  transactionPath: TransactionPathFromAttack,
+): Promise<any> => {
   // Fetch details for the current transaction
   const currentTransactionDetails = await fetchTransactionDetails(transactionPath.transactionHash);
 
@@ -108,28 +141,31 @@ export const fetchTransactionPathDetails = async (transactionPath: TransactionPa
     nextTransactions: nextTransactionDetails,
   };
 };
-export const getFileName = (address: string, tokenSymbol: string): string => {
-  return `output/${address}/${tokenSymbol}.json`
 
-}
+export const getFileName = (address: string, tokenSymbol: string): string => {
+  return `output/${address}/${tokenSymbol}.json`;
+};
 
 // Recursive function to convert each transaction path into a nested structure
 export const convertToTransactionPath = (hashes: string[]): TransactionPathFromAttack => {
   if (hashes.length === 0) {
-    return { transactionHash: "", nextTransactions: [] };
+    return { transactionHash: '', nextTransactions: [] };
   }
 
   const [first, ...rest] = hashes;
   return {
     transactionHash: first,
-    nextTransactions: rest.length ? [convertToTransactionPath(rest)] : []
+    nextTransactions: rest.length ? [convertToTransactionPath(rest)] : [],
   };
 };
 
 // Function to build the entire transaction path with root and multiple branches
-export const buildTransactionPath = (attack: { rootTransaction: string, transactionsPaths: string[][] }): TransactionPathFromAttack => {
+export const buildTransactionPath = (attack: {
+  rootTransaction: string;
+  transactionsPaths: string[][];
+}): TransactionPathFromAttack => {
   return {
     transactionHash: attack.rootTransaction,
-    nextTransactions: attack.transactionsPaths.map(path => convertToTransactionPath(path))
+    nextTransactions: attack.transactionsPaths.map((path) => convertToTransactionPath(path)),
   };
 };

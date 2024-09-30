@@ -1,14 +1,18 @@
 import { writeFileSync, unlinkSync, existsSync } from 'fs';
-import { TransactionPathFromAttack } from './types';
+import { RawTransactionAttack, TransactionPathFromAttack } from './types';
 import 'dotenv/config'; // Loads .env variables into process.env
-import { fetchTransactionPathDetails } from './utils';
-export const getTransactionPathContextForAttack = async (transactionPathFromAttack: TransactionPathFromAttack, fileName: string) => {
+import { buildTransactionPath, fetchTransactionPathDetails } from './utils';
+export const getTransactionPathContextForAttack = async (
+  rawTransactionAttack: RawTransactionAttack,
+  fileName: string,
+) => {
+  const transactionPathFromAttack = buildTransactionPath(rawTransactionAttack);
   const attackDetails = await fetchTransactionPathDetails(transactionPathFromAttack);
   // If the file already exists, delete it
   if (existsSync(fileName)) {
     unlinkSync(fileName); // Clear the file by deleting it
   }
   // Write the output to the file
-  console.log(JSON.stringify(attackDetails, null, 2))
+  console.log(JSON.stringify(attackDetails, null, 2));
   writeFileSync(fileName, JSON.stringify(attackDetails, null, 2));
 };
