@@ -9,5 +9,6 @@ export const getTransactionPathContextForAttack = async (transactionPathFromAtta
     unlinkSync(fileName); // Clear the file by deleting it
   }
   // Write the output to the file
+  console.log(JSON.stringify(attackDetails, null, 2))
   writeFileSync(fileName, JSON.stringify(attackDetails, null, 2));
 };

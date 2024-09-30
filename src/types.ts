@@ -24,7 +24,6 @@ export interface TransactionContext {
   timeStamp: string;
   blockNumber: number;
   ensName?: string;  // Optional if ENS is not available
-  tokenName: string;
   tokenAmount: string;
   tokenContractAddress: string
 

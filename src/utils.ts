@@ -65,7 +65,6 @@ export const fetchTransactionDetails = async (
       timeStamp,
       blockNumber: parsedTransaction.blockNumber ?? -1,
       ensName,
-      tokenName: tokenDetails ? '' : 'ETH', // Set to 'ETH' if no token details are found
       tokenAmount: tokenDetails?.amount ?? '',
       tokenContractAddress: tokenDetails?.tokenAddress ?? '',
     };
@@ -107,5 +106,30 @@ export const fetchTransactionPathDetails = async (transactionPath: TransactionPa
   return {
     ...currentTransactionDetails,
     nextTransactions: nextTransactionDetails,
+  };
+};
+export const getFileName = (address: string, tokenSymbol: string): string => {
+  return `output/${address}/${tokenSymbol}.json`
+
+}
+
+// Recursive function to convert each transaction path into a nested structure
+export const convertToTransactionPath = (hashes: string[]): TransactionPathFromAttack => {
+  if (hashes.length === 0) {
+    return { transactionHash: "", nextTransactions: [] };
+  }
+
+  const [first, ...rest] = hashes;
+  return {
+    transactionHash: first,
+    nextTransactions: rest.length ? [convertToTransactionPath(rest)] : []
+  };
+};
+
+// Function to build the entire transaction path with root and multiple branches
+export const buildTransactionPath = (attack: { rootTransaction: string, transactionsPaths: string[][] }): TransactionPathFromAttack => {
+  return {
+    transactionHash: attack.rootTransaction,
+    nextTransactions: attack.transactionsPaths.map(path => convertToTransactionPath(path))
   };
 };

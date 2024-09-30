@@ -4,3 +4,4 @@ export const KnownWalletsMap = {
   '0x28C6c06298d514Db089934071355E5743bf21d60': 'Binance 14',
   '0xD72CD83aFba0dCfEFf95D463adcB2b8dEf6aA623': 'Mixer1'
 }
+export const ATTACKED_WALLET_1 = '0xc24daD96e21a6cd97C263BF85B874e445469CD27'

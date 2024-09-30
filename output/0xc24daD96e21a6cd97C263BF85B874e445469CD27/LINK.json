@@ -5,7 +5,6 @@
   "timeStamp": "2024-08-09T19:49:11.000Z",
   "blockNumber": 20493237,
   "ensName": "",
-  "tokenName": "",
   "tokenAmount": "7371.618591910903695135",
   "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
   "nextTransactions": [
@@ -16,7 +15,6 @@
       "timeStamp": "2024-08-10T00:01:35.000Z",
       "blockNumber": 20494492,
       "ensName": "",
-      "tokenName": "",
       "tokenAmount": "2000.0",
       "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
       "nextTransactions": [
@@ -27,7 +25,6 @@
           "timeStamp": "2024-08-10T00:02:11.000Z",
           "blockNumber": 20494495,
           "ensName": "",
-          "tokenName": "",
           "tokenAmount": "2000.0",
           "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
           "nextTransactions": [
@@ -38,7 +35,6 @@
               "timeStamp": "2024-08-10T00:30:11.000Z",
               "blockNumber": 20494634,
               "ensName": "",
-              "tokenName": "",
               "tokenAmount": "4871.6",
               "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
               "nextTransactions": []
@@ -54,7 +50,6 @@
       "timeStamp": "2024-08-10T00:07:59.000Z",
       "blockNumber": 20494524,
       "ensName": "",
-      "tokenName": "",
       "tokenAmount": "2000.0",
       "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
       "nextTransactions": [
@@ -65,7 +60,6 @@
           "timeStamp": "2024-08-10T00:08:23.000Z",
           "blockNumber": 20494526,
           "ensName": "",
-          "tokenName": "",
           "tokenAmount": "2000.0",
           "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
           "nextTransactions": [
@@ -76,7 +70,6 @@
               "timeStamp": "2024-08-10T00:30:11.000Z",
               "blockNumber": 20494634,
               "ensName": "",
-              "tokenName": "",
               "tokenAmount": "4871.6",
               "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
               "nextTransactions": []
@@ -92,7 +85,6 @@
       "timeStamp": "2024-08-10T00:11:47.000Z",
       "blockNumber": 20494543,
       "ensName": "",
-      "tokenName": "",
       "tokenAmount": "2500.0",
       "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
       "nextTransactions": [
@@ -103,7 +95,6 @@
           "timeStamp": "2024-08-10T00:14:47.000Z",
           "blockNumber": 20494558,
           "ensName": "",
-          "tokenName": "",
           "tokenAmount": "2500.0",
           "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
           "nextTransactions": [
@@ -114,7 +105,6 @@
               "timeStamp": "2024-08-10T00:15:23.000Z",
               "blockNumber": 20494561,
               "ensName": "",
-              "tokenName": "",
               "tokenAmount": "3297.48538",
               "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
               "nextTransactions": [
@@ -125,7 +115,6 @@
                   "timeStamp": "2024-08-10T00:30:11.000Z",
                   "blockNumber": 20494634,
                   "ensName": "",
-                  "tokenName": "",
                   "tokenAmount": "3297.48538",
                   "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
                   "nextTransactions": []
@@ -143,7 +132,6 @@
       "timeStamp": "2024-08-10T00:18:11.000Z",
       "blockNumber": 20494575,
       "ensName": "",
-      "tokenName": "",
       "tokenAmount": "871.6",
       "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
       "nextTransactions": [
@@ -154,7 +142,6 @@
           "timeStamp": "2024-08-10T00:18:35.000Z",
           "blockNumber": 20494577,
           "ensName": "",
-          "tokenName": "",
           "tokenAmount": "871.6",
           "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
           "nextTransactions": [
@@ -165,7 +152,6 @@
               "timeStamp": "2024-08-10T00:30:11.000Z",
               "blockNumber": 20494634,
               "ensName": "",
-              "tokenName": "",
               "tokenAmount": "4871.6",
               "tokenContractAddress": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
               "nextTransactions": []
