@@ -2,8 +2,12 @@ export const KnownWalletsMap = {
   '0x18C4bf7c470069B9d18B6A5670E457De3983C299': 'Attacker_CD27_BinanceDepositWallet1',
   '0x19F00b3a7B6F55C9dA966FE3723251784a797fa7': 'Attacker_CD27_BinanceDepositWallet2',
   '0x28C6c06298d514Db089934071355E5743bf21d60': 'Binance 14',
+  '0xB38e8c17e38363aF6EbdCb3dAE12e0243582891D': 'Binance 54',
   '0xD72CD83aFba0dCfEFf95D463adcB2b8dEf6aA623': 'Mixer1_CD27_',
   '0xA9D1e08C7793af67e9d92fe308d5697FB81d3E43': 'Attacker_CD27_CoinBaseDeposit',
+  '0xa0277765726ae45667d84Ffd5b7f121477f200Da': 'Attacker_CD27_PersonalWallet',
+  '0xD5b73fC035d4d679234323e0d891cAB4A4f5a1Ab': 'ChangeNow: Hot Wallet',
+  '0xEBf4FBB9C81b84dd5CF89BC75588E5d0018501b3': 'ftm mixer'
 };
 export const ATTACKED_WALLET_1 = '0xc24daD96e21a6cd97C263BF85B874e445469CD27';
 

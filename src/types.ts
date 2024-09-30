@@ -34,8 +34,11 @@ export interface RawTransactionAttack {
   rootTransaction: string;
   transactionsPaths: string[][];
 }
-export interface RawTransactionAttackWithMetaData extends RawTransactionAttack {
+export interface RawTransactionMetaData {
   chain: string;
   chainId: string;
   wallet: string;
 }
+export interface RawTransactionAttackWithMetaData
+  extends RawTransactionMetaData,
+    RawTransactionAttack {}
