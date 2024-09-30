@@ -1,7 +1,16 @@
 import { writeFileSync, unlinkSync, existsSync } from 'fs';
-import { RawTransactionAttack, TransactionPathFromAttack } from './types';
+import {
+  RawTransactionAttack,
+  RawTransactionAttackWithMetaData,
+  TransactionPathFromAttack,
+} from './types';
 import 'dotenv/config'; // Loads .env variables into process.env
-import { buildTransactionPath, fetchTransactionPathDetails } from './utils';
+import { buildTransactionPath, fetchTransactionPathDetails, getFileName } from './utils';
+
+export const fetchTransaction = (attack: RawTransactionAttackWithMetaData) => {
+  const fileName = getFileName(attack);
+  getTransactionPathContextForAttack(attack, fileName).then().catch(console.log);
+};
 export const getTransactionPathContextForAttack = async (
   rawTransactionAttack: RawTransactionAttack,
   fileName: string,

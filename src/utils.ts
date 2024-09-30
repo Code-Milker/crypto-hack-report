@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import {
+  RawTransactionAttackWithMetaData,
   TransactionPathFromAttack,
   TransactionPathWithContext,
   TransactionPathWithFailedContext,
@@ -11,9 +12,7 @@ import { z } from 'zod';
 const provider = ethers.getDefaultProvider('homestead');
 
 // ABI to fetch decimals dynamically from the token contract
-const erc20Abi = [
-  'function decimals() view returns (uint8)',
-];
+const erc20Abi = ['function decimals() view returns (uint8)'];
 
 export const fetchTransactionDetails = async (
   transactionHash: string,
@@ -58,11 +57,9 @@ export const fetchTransactionDetails = async (
 
         try {
           decimals = await tokenContract.decimals(); // Fetch decimals dynamically
-          console.log(decimals)
         } catch (err) {
           console.error(`Failed to fetch decimals for token: ${tokenAddress}`, err);
         }
-        console.log(decodedLog.value)
         const amount = ethers.formatUnits(decodedLog.value, decimals);
 
         tokenDetails = {
@@ -88,6 +85,15 @@ export const fetchTransactionDetails = async (
       ? await provider.getBlock(parsedTransaction.blockNumber)
       : null;
     const timeStamp = block ? new Date(block.timestamp * 1000).toISOString() : '';
+    if (parsedTransaction.value.toString() !== '0') {
+      const ethAmount = ethers.formatEther(parsedTransaction.value);
+      tokenDetails = {
+        tokenAddress: 'ETH', // This represents the native currency
+        from: parsedTransaction.from,
+        to: parsedTransaction.to ?? '', // "to" can be null for contract creation
+        amount: ethAmount,
+      };
+    }
 
     // Return the structured transaction data
     return {
@@ -142,8 +148,8 @@ export const fetchTransactionPathDetails = async (
   };
 };
 
-export const getFileName = (address: string, tokenSymbol: string): string => {
-  return `output/${address}/${tokenSymbol}.json`;
+export const getFileName = (payload: RawTransactionAttackWithMetaData): string => {
+  return `output/${payload.wallet}/${payload.chainId}/${payload.tokenSymbol}.json`;
 };
 
 // Recursive function to convert each transaction path into a nested structure
