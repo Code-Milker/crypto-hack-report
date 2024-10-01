@@ -1,14 +1,12 @@
 {
-  "rootTransaction": {
-    "transactionHash": "0x83db357ac4c7a1167052fcfbd59b9c116042b2dc5e005f1f1115b8c936531d52",
-    "to": "0xD590923D687C921B8eD6566D9c357882E7F22eA9",
-    "from": "0x74a4CEb40a6ced4a6b7028458C01cd4962e37B48",
-    "timeStamp": "2024-08-09T19:38:47.000Z",
-    "blockNumber": 20493185,
-    "ensName": "",
-    "tokenAmount": "8.00034369",
-    "tokenContractAddress": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
-  },
+  "transactionHash": "0x83db357ac4c7a1167052fcfbd59b9c116042b2dc5e005f1f1115b8c936531d52",
+  "to": "0xD590923D687C921B8eD6566D9c357882E7F22eA9",
+  "from": "0x74a4CEb40a6ced4a6b7028458C01cd4962e37B48",
+  "timeStamp": "2024-08-09T19:38:47.000Z",
+  "blockNumber": 20493185,
+  "ensName": "",
+  "tokenAmount": "8.00034369",
+  "tokenContractAddress": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
   "nextTransactions": [
     {
       "transactionHash": "0x3eaf0bebdcba54c8b94dbba8f90dd81146679e81a0dc2b545d40c1dd69f0a95f",

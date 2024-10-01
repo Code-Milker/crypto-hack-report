@@ -115,7 +115,7 @@ const provider = new ethers.JsonRpcProvider(
 
 // Start the recursion process
 const generateAttackReport = async (fileName: string, rootTransaction: string,) => {
-  const depth = 3; // Recursion depth
+  const depth = 5; // Recursion depth
   const rootTransactionDetails = await fetchTransactionDetails(
     rootTransaction,
     provider,
@@ -126,9 +126,9 @@ const generateAttackReport = async (fileName: string, rootTransaction: string,) 
     rootTransactionDetails.to,
     depth,
     rootTransaction,
-    15,
+    50,
   );
-  const attackTransactionPath = { rootTransaction: rootTransactionDetails, nextTransactions }
+  const attackTransactionPath = { ...rootTransactionDetails, nextTransactions }
   console.log('writing file to: ', fileName)
 
   const dirPath = path.dirname(fileName);
