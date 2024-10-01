@@ -8,7 +8,31 @@ import {
 import 'dotenv/config'; // Loads .env variables into process.env
 import { transactionSchema } from './types';
 import { z } from 'zod';
+import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
+import * as path from 'path';
+export const fetchTransaction = async (attack: RawTransactionAttackWithMetaData) => {
+  const fileName = getFileName(attack);
+  const provider = createProvider(attack.rpcUrl);
+  const dirPath = path.dirname(fileName);
+  if (!existsSync(dirPath)) {
+    mkdirSync(dirPath, { recursive: true }); // Create directory if it doesn't exist
+  }
 
+  // Build the transaction path from the attack
+  const transactionPathFromAttack = buildTransactionPath(attack);
+
+  // Fetch the transaction path details
+  const attackDetails = await fetchTransactionPathDetails(transactionPathFromAttack, provider);
+
+  // If the file already exists, delete it to clear it
+  if (existsSync(fileName)) {
+    unlinkSync(fileName);
+  }
+
+  // Write the output to the file
+  console.log(JSON.stringify(attackDetails, null, 2));
+  writeFileSync(fileName, JSON.stringify(attackDetails, null, 2));
+};
 export const createProvider = (rpcUrl: string): ethers.JsonRpcProvider => {
   return new ethers.JsonRpcProvider(rpcUrl);
 };
@@ -18,11 +42,10 @@ const erc20Abi = ['function decimals() view returns (uint8)'];
 
 export const fetchTransactionDetails = async (
   transactionHash: string,
-  provider: ethers.Provider
+  provider: ethers.Provider,
 ): Promise<
   Omit<TransactionPathWithContext, 'nextTransactions'> | TransactionPathWithFailedContext | null
 > => {
-
   try {
     // Fetch transaction details from ethers.js
     const transaction = await provider.getTransaction(transactionHash);
@@ -133,10 +156,13 @@ const decodeERC20TransferLog = (log: ethers.Log, iface: ethers.Interface) => {
 
 export const fetchTransactionPathDetails = async (
   transactionPath: TransactionPathFromAttack,
-  provider: ethers.Provider
+  provider: ethers.Provider,
 ): Promise<any> => {
   // Fetch details for the current transaction
-  const currentTransactionDetails = await fetchTransactionDetails(transactionPath.transactionHash, provider);
+  const currentTransactionDetails = await fetchTransactionDetails(
+    transactionPath.transactionHash,
+    provider,
+  );
 
   // Recursively fetch the next transactions
   const nextTransactionDetails = [];
