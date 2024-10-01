@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { TransactionContext, TransactionContextPath } from './types';
+import { TransactionContext, TransactionContextPath } from '../types';
 
 
 
@@ -39,14 +39,15 @@ const followTransactionFlow = (
 }
 
 // Main function to process the transaction
-async function processTransaction(filePath: string): Promise<void> {
+export async function processTransaction(filePath: string): Promise<{ transactionContextPath: TransactionContextPath[], tokenSplitOrCombinationHash?: string }[]> {
   const transactionData = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
   const paths = await Promise.all(transactionData.nextTransactions.map((_t, i) => {
-    return followTransactionFlow(transactionData, [], i);
+    const { nextTransactions, ...root } = transactionData
+    return followTransactionFlow(transactionData, [{ ...root, nextTransactions: [] }], i);
   }))
-  console.log('Transaction Path:', JSON.stringify(paths, null, 2));
+
+  return paths;
 }
 
 // Example usage
-processTransaction('./output/test.json');

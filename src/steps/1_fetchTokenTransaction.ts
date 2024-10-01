@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
-import { fetchTransactionDetails } from './utils';
-import { TransactionPathWithContext } from './types';
+import { fetchTransactionDetails } from '../utils';
+import { TransactionPathWithContext } from '../types';
 import path from 'path';
 // 0xaa178b10a3a37bab88fe5947950c314ebab98af1c5e4ef79a8f850bdf5a5a176
 // 0x3bf43a4089ef9b18263efe934b710b65c6d4d80f5635404e0c1485017c14ae39
@@ -53,17 +53,18 @@ const fetchOutgoingTokenTransactions = async (
 
   // Fetch all outgoing events for the account
   const eventsOutgoing = await tokenContract.queryFilter(transferFilterOutgoing, block.number);
+
+  const limitedEvents = eventsOutgoing
+    .sort((a, b) => a.blockNumber - b.blockNumber)
+    .slice(0, transactionLimit)
   const transactionDetails: TransactionPathWithContext[] = await Promise.all(
-    eventsOutgoing
-      .sort((a, b) => a.blockNumber - b.blockNumber)
-      .slice(0, transactionLimit)
-      .map(async (event) => {
-        const transactionWithContext: TransactionPathWithContext = await fetchTransactionDetails(
-          event.transactionHash,
-          provider,
-        ).then();
-        return { ...transactionWithContext, nextTransactions: [] };
-      }),
+    limitedEvents.map(async (event) => {
+      const transactionWithContext: TransactionPathWithContext = await fetchTransactionDetails(
+        event.transactionHash,
+        provider,
+      ).then();
+      return { ...transactionWithContext, nextTransactions: [] };
+    }),
   );
 
   return transactionDetails;
@@ -115,7 +116,7 @@ const provider = new ethers.JsonRpcProvider(
 
 // Start the recursion process
 const generateAttackReport = async (fileName: string, rootTransaction: string,) => {
-  const depth = 5; // Recursion depth
+  const depth = 3; // Recursion depth
   const rootTransactionDetails = await fetchTransactionDetails(
     rootTransaction,
     provider,
@@ -126,7 +127,7 @@ const generateAttackReport = async (fileName: string, rootTransaction: string,) 
     rootTransactionDetails.to,
     depth,
     rootTransaction,
-    50,
+    20,
   );
   const attackTransactionPath = { ...rootTransactionDetails, nextTransactions }
   console.log('writing file to: ', fileName)
