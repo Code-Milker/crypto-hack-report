@@ -1,7 +1,8 @@
 import { ethers } from 'ethers';
-import { writeFileSync } from 'fs';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
 import { fetchTransactionDetails } from './utils';
 import { TransactionPathWithContext } from './types';
+import path from 'path';
 // 0xaa178b10a3a37bab88fe5947950c314ebab98af1c5e4ef79a8f850bdf5a5a176
 // 0x3bf43a4089ef9b18263efe934b710b65c6d4d80f5635404e0c1485017c14ae39
 //0x62daaf829021c507075369bd4464d0dcacdbe92e95ab32ef5155d83ee9f388a0
@@ -119,7 +120,7 @@ const generateAttackReport = async (fileName: string, rootTransaction: string,) 
     rootTransaction,
     provider,
   ) as TransactionPathWithContext
-  const transactions = await recursiveFetchTransactions(
+  const nextTransactions = await recursiveFetchTransactions(
     provider,
     rootTransactionDetails.tokenContractAddress,
     rootTransactionDetails.to,
@@ -127,8 +128,19 @@ const generateAttackReport = async (fileName: string, rootTransaction: string,) 
     rootTransaction,
     15,
   );
-  const attackTransactionPath = { rootTransactionDetails, transactions }
+  const attackTransactionPath = { rootTransaction: rootTransactionDetails, nextTransactions }
   console.log('writing file to: ', fileName)
-  writeFileSync('test.json', JSON.stringify(attackTransactionPath, null, 2));
+
+  const dirPath = path.dirname(fileName);
+  if (!existsSync(dirPath)) {
+    mkdirSync(dirPath, { recursive: true }); // Create directory if it doesn't exist
+  }
+
+  if (existsSync(fileName)) {
+    unlinkSync(fileName);
+  }
+  writeFileSync(fileName, JSON.stringify(attackTransactionPath, null, 2));
 }
-generateAttackReport('../output/test.json', '0x83db357ac4c7a1167052fcfbd59b9c116042b2dc5e005f1f1115b8c936531d52')
+
+
+generateAttackReport('./output/test.json', '0x83db357ac4c7a1167052fcfbd59b9c116042b2dc5e005f1f1115b8c936531d52')

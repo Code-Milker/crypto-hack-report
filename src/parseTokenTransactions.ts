@@ -1,90 +1,59 @@
 import * as fs from 'fs';
+import { TransactionContext, TransactionContextPath } from './types';
 
-type Transaction = {
-  transactionHash: string;
-  to: string;
-  from: string;
-  timeStamp: string;
-  blockNumber: number;
-  ensName: string;
-  tokenAmount: string;
-  tokenContractAddress: string;
-};
 
-type ChildTransaction = {
-  blockNumber: number;
-  from: string;
-  to: string;
-  value: string;
-  transactionHash: string;
-  children: ChildTransaction[];
-};
-
-type RootTransactionData = {
-  rootTransaction: Transaction;
-  transactions: ChildTransaction[];
-};
 
 // Function to read JSON file and parse it
-function readTransactionData(filePath: string): RootTransactionData {
+function readTransactionData(filePath: string): any {
   const rawData = fs.readFileSync(filePath, 'utf-8');
   return JSON.parse(rawData);
 }
 
 // Function to construct the Etherscan filter link
-function getEtherscanLink(from: string, to: string, date: string, token: string): string {
-  const formattedDate = new Date(date).toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-  return `https://etherscan.io/advanced-filter?fadd=${from}&tadd=${to}&age=${formattedDate}%7e${formattedDate}&tkn=${token}`;
+function getEtherscanLink(transactionContext: TransactionContextPath): string {
+  const formattedDate = new Date(transactionContext.timeStamp).toISOString().split('T')[0]; // Format date as YYYY-MM-DD
+  return `https://etherscan.io/advanced-filter?fadd=${transactionContext.from}&tadd=${transactionContext.to}&age=${formattedDate}%7e${formattedDate}&tkn=${transactionContext.tokenContractAddress}`;
 }
 
 // Recursive function to follow the transaction path
-function followTransactionPath(
-  transaction: Transaction,
-  children: ChildTransaction[],
-  isRoot: boolean = false,
-): { rootTransaction: string; children: (string | string[])[] } {
-  const transactionPath = {
-    rootTransaction: transaction.transactionHash,
-    children: [] as (string | string[])[],
-  };
 
-  for (const child of children) {
-    const childTransactionGroup: string[] = [child.transactionHash];
+const followTransactionFlow = (
+  transaction: TransactionContextPath,
+  tokenAmount: string
+): { transactionContextPath: TransactionContextPath[], tokenSplitOrCombinationHash?: string } => {
+  const transactionContextPath: TransactionContextPath[] = [];
 
-    if (child.value === transaction.tokenAmount) {
-      // Recursively go deeper into the transaction chain if the value matches
-      if (child.children.length > 0) {
-        const childPath = followTransactionPath(
-          { ...transaction, tokenAmount: child.value },
-          child.children,
-        );
-        childTransactionGroup.push(...childPath.children.flat());
-      }
+  // Start with the root transaction
+  transactionContextPath.push(
+    transaction,
+  );
+  // If this transaction has any children transactions, check those
+  for (const childTransaction of transaction.nextTransactions) {
+    // Check if the child's tokenAmount matches the current tokenAmount being transferred
+    if (childTransaction.tokenAmount === tokenAmount) {
+      // Add the child transaction to the flow
+      transactionContextPath.push(childTransaction);
+
+      // Recurse into the child transaction to find the next matching transaction
+      const nextFlow = followTransactionFlow(childTransaction, transaction.tokenAmount);
+      transactionContextPath.push(...nextFlow.transactionContextPath);
     } else {
-      // If no matching value, push an Etherscan link for manual inspection
-      const etherscanLink = getEtherscanLink(
-        child.from,
-        child.to,
-        transaction.timeStamp,
-        transaction.tokenContractAddress,
-      );
-      childTransactionGroup.push(etherscanLink);
+      // If no matching tokenAmount is found, leave an Etherscan link for manual inspection
+      getEtherscanLink(transaction)
+      return { transactionContextPath, tokenSplitOrCombinationHash: childTransaction.transactionHash }
     }
-
-    transactionPath.children.push(childTransactionGroup);
   }
 
-  return transactionPath;
+  return { transactionContextPath, tokenSplitOrCombinationHash: '' }
 }
 
 // Main function to process the transaction
 function processTransaction(filePath: string): void {
-  const { rootTransaction, transactions } = readTransactionData(filePath);
-
+  const { rootTransaction, nextTransactions } = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
-  const transactionPath = followTransactionPath(rootTransaction, transactions, true);
+  const transactionPath = followTransactionFlow(rootTransaction, nextTransactions,);
   console.log('Transaction Path:', transactionPath);
 }
 
 // Example usage
-processTransaction('../test.json');
+processTransaction('test.json');

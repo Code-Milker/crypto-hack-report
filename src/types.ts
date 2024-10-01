@@ -24,11 +24,15 @@ export interface TransactionContext {
   ensName?: string; // Optional if ENS is not available
   tokenAmount: string;
   tokenContractAddress: string;
+  transactionHash: string
 }
 export interface TransactionPathWithFailedContext {
   error: string;
 }
-export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack {}
+export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack { }
+export interface TransactionContextPath extends TransactionContext {
+  nextTransactions: TransactionContextPath[];
+}
 export interface RawTransactionAttack {
   tokenSymbol: string;
   rootTransaction: string;
@@ -42,4 +46,4 @@ export interface RawTransactionMetaData {
 }
 export interface RawTransactionAttackWithMetaData
   extends RawTransactionMetaData,
-    RawTransactionAttack {}
+  RawTransactionAttack { }
