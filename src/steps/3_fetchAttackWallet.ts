@@ -2,6 +2,7 @@
 import * as fs from 'fs';
 import { TransactionContextPath } from '../types';
 import { processTransaction } from './2_fetchAttackPath'
+import { KnownWalletsMap, WALLET_THAT_WAS_COMPROMISED } from '../info';
 
 
 // Function to read JSON file and parse it
@@ -21,7 +22,11 @@ async function fetchAttackWallets(filePath: string): Promise<any> {
   const wallets = attacks.map(a => {
     const wallets = new Set()
     const path: string[] = []
-    a.transactionContextPath.forEach((p) => {
+    a.transactionContextPath.forEach((p, index) => {
+      if (index) {
+
+        WALLET_THAT_WAS_COMPROMISED
+      }
       wallets.add(p.from)
       wallets.add(p.to)
       path.push(p.transactionHash)

@@ -9,6 +9,8 @@ export const KnownWalletsMap = {
   '0xD5b73fC035d4d679234323e0d891cAB4A4f5a1Ab': 'ChangeNow: Hot Wallet',
   '0xEBf4FBB9C81b84dd5CF89BC75588E5d0018501b3': 'ftm mixer',
 };
+export const WALLET_THAT_WAS_COMPROMISED = 'wallet that was compromised'
+
 export const ATTACKED_WALLET_1 = '0xc24daD96e21a6cd97C263BF85B874e445469CD27';
 export const ATTACKED_WALLET_2 = '0x74a4CEb40a6ced4a6b7028458C01cd4962e37B48';
 export const ATTACKED_WALLET_3 = '0x6dE4b8e197d55119595DfEF5D0F11E4eA2a184c8';
