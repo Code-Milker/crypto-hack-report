@@ -1,8 +1,6 @@
 import * as fs from 'fs';
 import { TransactionContext, TransactionContextPath } from '../types';
 
-
-
 // Function to read JSON file and parse it
 function readTransactionData(filePath: string): TransactionContextPath {
   const rawData = fs.readFileSync(filePath, 'utf-8');
@@ -18,34 +16,56 @@ function getEtherscanLink(transactionContext: TransactionContextPath): string {
 // Recursive function to follow the transaction path
 
 const followTransactionFlow = (
-  transaction: TransactionContextPath, transactionContextPath: TransactionContextPath[], startAt: number | null
-): { transactionContextPath: TransactionContextPath[], tokenSplitOrCombinationHash?: string } => {
-
-  const matchingTransactions = transaction.nextTransactions.filter(t => {
-    return t.tokenContractAddress === transaction.tokenContractAddress && t.tokenAmount === transaction.tokenAmount
-
-  }).sort((a, b) => a.blockNumber - b.blockNumber)
+  transaction: TransactionContextPath,
+  transactionContextPath: TransactionContextPath[],
+  startAt: number | null,
+): { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string } => {
+  const matchingTransactions = transaction.nextTransactions
+    .filter((t) => {
+      return (
+        t.tokenContractAddress === transaction.tokenContractAddress &&
+        t.tokenAmount === transaction.tokenAmount
+      );
+    })
+    .sort((a, b) => a.blockNumber - b.blockNumber);
   if (matchingTransactions.length) {
-    const matchingTransaction = matchingTransactions[0]
-    return followTransactionFlow(matchingTransaction, [{ ...matchingTransaction, nextTransactions: [] }, ...transactionContextPath], null)
+    const matchingTransaction = matchingTransactions[0];
+    return followTransactionFlow(
+      matchingTransaction,
+      [{ ...matchingTransaction, nextTransactions: [] }, ...transactionContextPath],
+      null,
+    );
   } else if (startAt !== null) {
-    return followTransactionFlow(transaction.nextTransactions[startAt], [{ ...transaction.nextTransactions[startAt], nextTransactions: [] }, ...transactionContextPath], null)
+    return followTransactionFlow(
+      transaction.nextTransactions[startAt],
+      [
+        { ...transaction.nextTransactions[startAt], nextTransactions: [] },
+        ...transactionContextPath,
+      ],
+      null,
+    );
   } else {
     return {
-      transactionContextPath: transactionContextPath.reverse(), tokenSplitOrCombinationHash: getEtherscanLink(transaction)
-
-    }
+      transactionContextPath: transactionContextPath.reverse(),
+      tokenSplitOrCombinationHash: getEtherscanLink(transaction),
+    };
   }
-}
+};
 
 // Main function to process the transaction
-export async function processTransaction(filePath: string): Promise<{ transactionContextPath: TransactionContextPath[], tokenSplitOrCombinationHash?: string }[]> {
+export async function processTransaction(
+  filePath: string,
+): Promise<
+  { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[]
+> {
   const transactionData = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
-  const paths = await Promise.all(transactionData.nextTransactions.map((_t, i) => {
-    const { nextTransactions, ...root } = transactionData
-    return followTransactionFlow(transactionData, [{ ...root, nextTransactions: [] }], i);
-  }))
+  const paths = await Promise.all(
+    transactionData.nextTransactions.map((_t, i) => {
+      const { nextTransactions, ...root } = transactionData;
+      return followTransactionFlow(transactionData, [{ ...root, nextTransactions: [] }], i);
+    }),
+  );
 
   return paths;
 }

@@ -206,3 +206,28 @@ export const buildTransactionPath = (attack: {
     nextTransactions: attack.transactionsPaths.map((path) => convertToTransactionPath(path)),
   };
 };
+
+export const fetchBlockInfoFromTransaction = async (
+  txHash: string,
+  provider: ethers.Provider,
+): Promise<ethers.Block> => {
+  // Step 1: Fetch transaction receipt
+  const txReceipt = await provider.getTransactionReceipt(txHash);
+
+  if (!txReceipt) {
+    throw Error('Transaction not found');
+  }
+
+  // Step 2: Get the block number from the transaction receipt
+  const blockNumber = txReceipt.blockNumber;
+
+  // Step 3: Fetch block information using the block number
+  const blockInfo = await provider.getBlock(blockNumber);
+  if (!blockInfo || !blockInfo?.number) {
+    throw Error('block number not found');
+  }
+
+  return blockInfo;
+
+  // Log the block information
+};

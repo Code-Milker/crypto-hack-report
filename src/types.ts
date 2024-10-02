@@ -24,12 +24,12 @@ export interface TransactionContext {
   ensName?: string; // Optional if ENS is not available
   tokenAmount: string;
   tokenContractAddress: string;
-  transactionHash: string
+  transactionHash: string;
 }
 export interface TransactionPathWithFailedContext {
   error: string;
 }
-export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack { }
+export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack {}
 export interface TransactionContextPath extends TransactionContext {
   nextTransactions: TransactionContextPath[];
 }
@@ -46,4 +46,25 @@ export interface RawTransactionMetaData {
 }
 export interface RawTransactionAttackWithMetaData
   extends RawTransactionMetaData,
-  RawTransactionAttack { }
+    RawTransactionAttack {}
+
+export enum ChainId {
+  Ethereum = 1,
+  Arbitrum = 42161,
+  Polygon = 137,
+  Gnosis = 100,
+  Fantom = 250,
+  Optimism = 10,
+}
+
+// Define the ChainInfo type
+export type ChainInfo = {
+  name: string;
+  rpcUrl: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  blockExplorerUrl: string;
+};
