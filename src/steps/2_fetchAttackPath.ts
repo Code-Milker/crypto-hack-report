@@ -69,7 +69,6 @@ export async function processTransaction(
 export const step2 = async () => {
   const data: { [transactionHash: string]: TransactionContextPath } = await fetchStepData(1);
   const { lastSuccessfulHash, ...dataToUse } = data
-  console.log(Object.keys(dataToUse))
   const res = await Promise.all(Object.keys(dataToUse).map(async (transaction) => {
     // console.log(data[transaction])
     const transactionContextPath = await processTransaction(data[transaction]);
