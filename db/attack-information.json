@@ -440,5 +440,58 @@
         "tokenSplitOrCombinationHash": "https://etherscan.io/advanced-filter?fadd=0x19258C3D8682DF384E5acfcEb2784C93e635Dc90&tadd=0xD72CD83aFba0dCfEFf95D463adcB2b8dEf6aA623&age=2024-08-10%7e2024-08-10&tkn=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       }
     ]
+  },
+  "3": {
+    "0": [
+      {
+        "0xa2e1103c64aaabf7d6bb188b1af1c60b642adda3ae6be22ea855b41db50ea147": [
+          {
+            "wallets": {
+              "0x8Ba3091b423aCd810954692293cb3C4E764B6001": {
+                "alias": "Victims wallet",
+                "type": "Victim",
+                "chainIds": [],
+                "urlLinks": [],
+                "associatedAddresses": {}
+              },
+              "0xe79f8a2674C177432eC93b7d127e424033b3a65E": {
+                "alias": "",
+                "type": "Unknown",
+                "chainIds": [],
+                "urlLinks": [],
+                "associatedAddresses": {}
+              },
+              "0x19258C3D8682DF384E5acfcEb2784C93e635Dc90": {
+                "alias": "",
+                "type": "Unknown",
+                "chainIds": [],
+                "urlLinks": [],
+                "associatedAddresses": {}
+              },
+              "0xD72CD83aFba0dCfEFf95D463adcB2b8dEf6aA623": {
+                "alias": "Mixer1_CD27_",
+                "type": "Mixer",
+                "chainIds": [
+                  "1"
+                ],
+                "urlLinks": [],
+                "associatedAddresses": {}
+              }
+            },
+            "path": [
+              "0xa2e1103c64aaabf7d6bb188b1af1c60b642adda3ae6be22ea855b41db50ea147",
+              "0x8b0933a0a8c0167cb90cf0e0f85522227f0f9ac9450aa9648691e4a50bffddc0",
+              "0x9e2298bdf723d1a8b4f5a58bf54c6bf0b56199134c2b1876a523af4019cf03d4"
+            ],
+            "id": 1,
+            "walletThatWasCompromised": "0x8Ba3091b423aCd810954692293cb3C4E764B6001",
+            "amount": "",
+            "tokenAddress": "",
+            "tokenName": "",
+            "dollarValue": ""
+          }
+        ]
+      }
+    ]
   }
 }

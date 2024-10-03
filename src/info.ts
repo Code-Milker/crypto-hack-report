@@ -4,7 +4,7 @@ interface UrlLink {
   url: string;
   description: string;
 }
-export type WalletType = 'Self-Custody' | 'CEX-Specific' | 'Other' | 'Mixer' | 'Unknown';
+export type WalletType = 'Self-Custody' | 'CEX-Specific' | 'Other' | 'Mixer' | 'Unknown' | 'Victim';
 export interface WalletInformation {
   alias: string;
   type: WalletType;

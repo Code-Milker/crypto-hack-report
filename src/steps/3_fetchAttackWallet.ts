@@ -31,34 +31,51 @@ async function fetchAttackWalletsAndPath(attacks: { transactionContextPath: Tran
 }
 const lookUpKnownWallets = (res: { wallets: string[]; path: string[]; id: number }[]) => {
 
-  res.forEach((a) => {
-    let knownWalletsMap: KnownWalletsMap = {};
-    a.wallets.forEach((w) => {
-      const matchingWallet: WalletInformation = KnownWallets[w] || {
+  return res.map((a) => {
+    const walletsWithInfo: { [address: string]: WalletInformation } = {}
+    const updatedWallets = a.wallets.forEach((w, i) => {
+      let matchingWallet: WalletInformation = KnownWallets[w] || {
         alias: '',
         type: 'Unknown',
         chainIds: [],
         urlLinks: [],
         associatedAddresses: {},
       };
-      knownWalletsMap = { ...knownWalletsMap, [w]: matchingWallet };
 
-      // const walletDetail = { address: w, walletType: '' };
+      if (i === 0) {
+        matchingWallet = {
+          alias: 'Victims wallet',
+          type: 'Victim',
+          chainIds: [],
+          urlLinks: [],
+          associatedAddresses: {},
+        }
+      }
+
+      walletsWithInfo[w] = matchingWallet
     });
-    console.log(knownWalletsMap);
+    console.log(walletsWithInfo)
+    return { ...a, wallets: walletsWithInfo }
+    // console.log(knownWalletsMap);
   });
 }
 
 const main = async () => {
   const data: { [transactionHash: string]: { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[] } = await fetchStepData(2);
   const transactions = await Promise.all(Object.keys(data).map(async key => {
-    const walletAndPaths = await fetchAttackWalletsAndPath(data[key])
-    const walletAndPathsWithKnowWallets = lookUpKnownWallets(walletAndPaths);
-    return { [key]: walletAndPathsWithKnowWallets }
-  }))
+    const addressesInvolved = await fetchAttackWalletsAndPath(data[key])
+    const addressesIdentity = lookUpKnownWallets(addressesInvolved);
 
-  console.log(JSON.stringify(transactions, null, 2));
-};
+    return {
+      [key]: addressesIdentity
+    }
+  }))
+  Object.keys(transactions).forEach(async (t) => {
+    await writeStepDataWithTransactionHashIndex(3, transactions, t)
+  })
+}
+
+
 main();
 // if (index === 0) {
 //   WALLET_THAT_WAS_COMPROMISED
