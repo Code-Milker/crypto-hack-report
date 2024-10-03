@@ -69,7 +69,7 @@ export const fetchTransactionDetails = async (
     }
 
     // Decode token transfer details from logs
-    let tokenDetails: { tokenAddress: string; from: string; to: string; amount: string } | null =
+    let tokenDetails: { tokenAddress: string; from: string; to: string; amount: string, } | null =
       null;
     for (const log of receipt.logs) {
       const decodedLog = decodeERC20TransferLog(log, erc20Interface);
@@ -115,7 +115,7 @@ export const fetchTransactionDetails = async (
     if (parsedTransaction.value.toString() !== '0') {
       const ethAmount = ethers.formatEther(parsedTransaction.value);
       tokenDetails = {
-        tokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // temp set to weth
+        tokenAddress: 'ETH', // temp set to weth
         from: parsedTransaction.from,
         to: parsedTransaction.to ?? '', // "to" can be null for contract creation
         amount: ethAmount,
@@ -231,3 +231,12 @@ export const fetchBlockInfoFromTransaction = async (
 
   // Log the block information
 };
+export function getBlockOneWeekAhead(startBlock: number) {
+  const blocksPerDay = 6500; // Approximate blocks per day on Ethereum (13 seconds per block)
+  const daysInWeek = 7;
+  const blocksInWeek = blocksPerDay * daysInWeek; // About 45,500 blocks in a week
+
+  // Calculate the block number one week ahead
+  const endBlock = startBlock + blocksInWeek;
+  return endBlock;
+}

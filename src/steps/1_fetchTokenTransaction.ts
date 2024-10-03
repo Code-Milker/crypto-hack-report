@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { fetchBlockInfoFromTransaction, fetchTransactionDetails } from '../utils';
+import { fetchBlockInfoFromTransaction, fetchTransactionDetails, getBlockOneWeekAhead } from '../utils';
 import { TransactionPathWithContext } from '../types';
 import { cacheEvents, fetchStepData, getCachedEvents, writeStepDataWithTransactionHashIndex } from './db';
 import { AttackedInformation } from './0_attackInformation';
@@ -12,15 +12,6 @@ const erc20ABI = [
   'function approve(address spender, uint256 amount) returns (bool)',
   'function decimals() view returns (uint8)',
 ];
-function getBlockOneWeekAhead(startBlock: number) {
-  const blocksPerDay = 6500; // Approximate blocks per day on Ethereum (13 seconds per block)
-  const daysInWeek = 7;
-  const blocksInWeek = blocksPerDay * daysInWeek; // About 45,500 blocks in a week
-
-  // Calculate the block number one week ahead
-  const endBlock = startBlock + blocksInWeek;
-  return endBlock;
-}
 
 export async function fetchOrCacheEvents(
   tokenContract: ethers.Contract,
@@ -145,7 +136,6 @@ const generateAttackReport = async (rootTransaction: string, provider: ethers.Js
     rootTransaction,
     provider,
   )) as TransactionPathWithContext;
-  console.log({ rootTransactionDetails })
   const nextTransactions = await recursiveFetchTransactions(
     provider,
     rootTransactionDetails.tokenContractAddress,
@@ -158,16 +148,6 @@ const generateAttackReport = async (rootTransaction: string, provider: ethers.Js
   return step1Data;
 };
 
-// export const step1 = async () => {
-//   const data: AttackedInformation[] = await fetchStepData(0);
-//   const wallet3Eth = data[2].chains[0];
-//   const transactionHash = wallet3Eth.attackRootTransactionHashes[0]
-//   const report = await generateAttackReport(
-//     transactionHash,
-//     new ethers.JsonRpcProvider(wallet3Eth.chainInfo.rpcUrl),
-//   );
-//   writeStepDataWithTransactionHashIndex(1, report, transactionHash)
-// };
 
 export const step1 = async (startingTransactionHash: string = '') => {
   let pastStartingTransactionHash = startingTransactionHash === ''
