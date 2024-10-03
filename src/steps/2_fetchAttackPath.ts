@@ -1,11 +1,7 @@
 import * as fs from 'fs';
-import { TransactionContext, TransactionContextPath } from '../types';
+import { TransactionContext, TransactionContextPath, TransactionPathWithContext } from '../types';
+import { fetchStepData, writeStepDataWithTransactionHashIndex } from './db';
 
-// Function to read JSON file and parse it
-function readTransactionData(filePath: string): TransactionContextPath {
-  const rawData = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(rawData);
-}
 
 // Function to construct the Etherscan filter link
 function getEtherscanLink(transactionContext: TransactionContextPath): string {
@@ -54,20 +50,30 @@ const followTransactionFlow = (
 
 // Main function to process the transaction
 export async function processTransaction(
-  filePath: string,
+  data: TransactionContextPath
 ): Promise<
   { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[]
 > {
-  const transactionData = readTransactionData(filePath);
+  // const transactionData = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
   const paths = await Promise.all(
-    transactionData.nextTransactions.map((_t, i) => {
-      const { nextTransactions, ...root } = transactionData;
-      return followTransactionFlow(transactionData, [{ ...root, nextTransactions: [] }], i);
+    data.nextTransactions.map((_t, i) => {
+      const { nextTransactions, ...root } = data;
+      return followTransactionFlow(data, [{ ...root, nextTransactions: [] }], i);
     }),
   );
 
   return paths;
 }
-
+export const step3 = async () => {
+  const data: { [transactionHash: string]: TransactionContextPath } = await fetchStepData(1);
+  const res = await Promise.all(Object.keys(data).map(async (transaction) => {
+    const transactionContextPath = await processTransaction(data[transaction]);
+    return { transactionHash: data[transaction].transactionHash, transactionContextPath }
+  }))
+  res.forEach(async t => {
+    await writeStepDataWithTransactionHashIndex(2, t.transactionContextPath, t.transactionHash)
+  })
+}
+step3()
 // Example usage

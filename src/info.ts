@@ -140,7 +140,7 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
     ChainId.Ethereum, // Ethereum Mainnet
     {
       name: 'Ethereum Mainnet',
-      rpcUrl: 'https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID',
+      rpcUrl: 'https://mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
       nativeCurrency: {
         name: 'Ether',
         symbol: 'ETH',
@@ -153,7 +153,7 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
     ChainId.Arbitrum, // Arbitrum One Mainnet
     {
       name: 'Arbitrum One',
-      rpcUrl: 'https://arb1.arbitrum.io/rpc',
+      rpcUrl: 'https://arbitrum-mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
       nativeCurrency: {
         name: 'Ether',
         symbol: 'ETH',
@@ -166,7 +166,7 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
     ChainId.Polygon, // Polygon Mainnet
     {
       name: 'Polygon Mainnet',
-      rpcUrl: 'https://polygon-rpc.com',
+      rpcUrl: 'https://polygon-mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
       nativeCurrency: {
         name: 'Matic',
         symbol: 'MATIC',

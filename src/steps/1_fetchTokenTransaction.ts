@@ -1,6 +1,8 @@
 import { ethers } from 'ethers';
 import { fetchBlockInfoFromTransaction, fetchTransactionDetails } from '../utils';
 import { TransactionPathWithContext } from '../types';
+import { cacheEvents, fetchStepData, getCachedEvents, writeStepDataWithTransactionHashIndex } from './db';
+import { AttackedInformation } from './0_attackInformation';
 // Define the ERC20 ABI with the decimals function
 const erc20ABI = [
   'event Transfer(address indexed from, address indexed to, uint256 value)',
@@ -10,6 +12,51 @@ const erc20ABI = [
   'function approve(address spender, uint256 amount) returns (bool)',
   'function decimals() view returns (uint8)',
 ];
+function getBlockOneWeekAhead(startBlock: number) {
+  const blocksPerDay = 6500; // Approximate blocks per day on Ethereum (13 seconds per block)
+  const daysInWeek = 7;
+  const blocksInWeek = blocksPerDay * daysInWeek; // About 45,500 blocks in a week
+
+  // Calculate the block number one week ahead
+  const endBlock = startBlock + blocksInWeek;
+  return endBlock;
+}
+
+export async function fetchOrCacheEvents(
+  tokenContract: ethers.Contract,
+  tokenContractAddress: string,
+  account: string,
+  block: ethers.Block,
+): Promise<(ethers.EventLog | ethers.Log)[]> {
+  const startBlock = block.number;
+  const endBlock = getBlockOneWeekAhead(startBlock);
+
+  // Check if events are cached
+  const cachedEvents = await getCachedEvents(tokenContractAddress, startBlock, endBlock);
+
+  if (cachedEvents) {
+    console.log('Fetched from cache:', cachedEvents);
+    return cachedEvents;
+  } else {
+    console.log('No cache entry found. Fetching from the blockchain...');
+
+    // Create a filter for outgoing transfers
+    const transferFilterOutgoing = tokenContract.filters.Transfer(account, null);
+
+    // Fetch events from the blockchain
+    const eventsOutgoing = await tokenContract.queryFilter(
+      transferFilterOutgoing,
+      startBlock,
+      endBlock,
+    );
+
+    // Cache the fetched events
+    await cacheEvents(tokenContractAddress, startBlock, endBlock, eventsOutgoing);
+
+    console.log('Fetched from blockchain and cached.');
+    return eventsOutgoing;
+  }
+}
 
 // Fetch only outgoing token transactions for a specific account
 const fetchOutgoingTokenTransactions = async (
@@ -22,10 +69,15 @@ const fetchOutgoingTokenTransactions = async (
   const block = await fetchBlockInfoFromTransaction(fromTransactionHash, provider);
   const tokenContract = new ethers.Contract(tokenContractAddress, erc20ABI, provider);
   const decimals = await tokenContract.decimals();
-  const transferFilterOutgoing = tokenContract.filters.Transfer(account, null); // Only outgoing transfers
-
-  // Fetch all outgoing events for the account
-  const eventsOutgoing = await tokenContract.queryFilter(transferFilterOutgoing, block.number);
+  // const transferFilterOutgoing = tokenContract.filters.Transfer(account, null); // Only outgoing transfers
+  //
+  // // Fetch all outgoing events for the account
+  const eventsOutgoing = await fetchOrCacheEvents(
+    tokenContract,
+    tokenContractAddress,
+    account,
+    block,
+  );
 
   const limitedEvents = eventsOutgoing
     .sort((a, b) => a.blockNumber - b.blockNumber)
@@ -83,12 +135,12 @@ const recursiveFetchTransactions = async (
 };
 
 // Initialize the provider using ethers.providers
-const provider = new ethers.JsonRpcProvider(
-  'https://mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
-);
+// const provider = new ethers.JsonRpcProvider(
+//   'https://mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
+// );
 
 // Start the recursion process
-const generateAttackReport = async (fileName: string, rootTransaction: string) => {
+const generateAttackReport = async (rootTransaction: string, provider: ethers.JsonRpcProvider) => {
   const depth = 3; // Recursion depth
   const rootTransactionDetails = (await fetchTransactionDetails(
     rootTransaction,
@@ -103,9 +155,18 @@ const generateAttackReport = async (fileName: string, rootTransaction: string) =
     20,
   );
   const step1Data = { ...rootTransactionDetails, nextTransactions };
+  return step1Data;
 };
 
-generateAttackReport(
-  './output/test.json',
-  '0x83db357ac4c7a1167052fcfbd59b9c116042b2dc5e005f1f1115b8c936531d52',
-);
+export const step1 = async () => {
+  const data: AttackedInformation[] = await fetchStepData(0);
+  const wallet3Eth = data[2].chains[0];
+  const transactionHash = wallet3Eth.attackRootTransactionHashes[0]
+  const report = await generateAttackReport(
+    transactionHash,
+    new ethers.JsonRpcProvider(wallet3Eth.chainInfo.rpcUrl),
+  );
+  console.log(report)
+  writeStepDataWithTransactionHashIndex(1, report, transactionHash)
+};
+step1()

@@ -1,12 +1,6 @@
-
-import {
-  ATTACKED_WALLET_1,
-  ATTACKED_WALLET_2,
-  ATTACKED_WALLET_3,
-  chainInfoMap,
-} from '../info';
+import { ATTACKED_WALLET_1, ATTACKED_WALLET_2, ATTACKED_WALLET_3, chainInfoMap } from '../info';
 import { ChainId, ChainInfo } from '../types';
-import { writeStepData } from './db';
+import { writeStepData0 } from './db';
 
 // Enum for chain IDs
 
@@ -98,4 +92,7 @@ const attackInformation: AttackedInformation[] = [
     ],
   },
 ];
-writeStepData(0, attackInformation)
+export const step0 = () => {
+
+  writeStepData0(0, attackInformation);
+}
