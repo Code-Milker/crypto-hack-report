@@ -54,6 +54,7 @@ export async function processTransaction(
 ): Promise<
   { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[]
 > {
+
   // const transactionData = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
   const paths = await Promise.all(
@@ -67,7 +68,10 @@ export async function processTransaction(
 }
 export const step2 = async () => {
   const data: { [transactionHash: string]: TransactionContextPath } = await fetchStepData(1);
-  const res = await Promise.all(Object.keys(data).map(async (transaction) => {
+  const { lastSuccessfulHash, ...dataToUse } = data
+  console.log(Object.keys(dataToUse))
+  const res = await Promise.all(Object.keys(dataToUse).map(async (transaction) => {
+    // console.log(data[transaction])
     const transactionContextPath = await processTransaction(data[transaction]);
     return { transactionHash: data[transaction].transactionHash, transactionContextPath }
   }))
