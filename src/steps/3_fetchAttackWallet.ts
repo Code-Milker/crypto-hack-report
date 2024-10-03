@@ -60,7 +60,7 @@ const lookUpKnownWallets = (res: { wallets: string[]; path: string[]; id: number
   });
 }
 
-const main = async () => {
+export const step3 = async () => {
   const data: { [transactionHash: string]: { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[] } = await fetchStepData(2);
   const transactions = await Promise.all(Object.keys(data).map(async key => {
     const addressesInvolved = await fetchAttackWalletsAndPath(data[key])
@@ -76,7 +76,7 @@ const main = async () => {
 }
 
 
-main();
+step3();
 // if (index === 0) {
 //   WALLET_THAT_WAS_COMPROMISED
 // }

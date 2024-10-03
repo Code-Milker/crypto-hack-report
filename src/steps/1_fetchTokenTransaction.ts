@@ -35,7 +35,6 @@ export async function fetchOrCacheEvents(
   const cachedEvents = await getCachedEvents(tokenContractAddress, startBlock, endBlock);
 
   if (cachedEvents) {
-    console.log('Fetched from cache:', cachedEvents);
     return cachedEvents;
   } else {
     console.log('No cache entry found. Fetching from the blockchain...');
@@ -68,7 +67,7 @@ const fetchOutgoingTokenTransactions = async (
 ) => {
   const block = await fetchBlockInfoFromTransaction(fromTransactionHash, provider);
   const tokenContract = new ethers.Contract(tokenContractAddress, erc20ABI, provider);
-  const decimals = await tokenContract.decimals();
+  // const decimals = await tokenContract.decimals();
   // const transferFilterOutgoing = tokenContract.filters.Transfer(account, null); // Only outgoing transfers
   //
   // // Fetch all outgoing events for the account
@@ -146,6 +145,7 @@ const generateAttackReport = async (rootTransaction: string, provider: ethers.Js
     rootTransaction,
     provider,
   )) as TransactionPathWithContext;
+  console.log({ rootTransactionDetails })
   const nextTransactions = await recursiveFetchTransactions(
     provider,
     rootTransactionDetails.tokenContractAddress,
@@ -158,15 +158,39 @@ const generateAttackReport = async (rootTransaction: string, provider: ethers.Js
   return step1Data;
 };
 
-export const step1 = async () => {
+// export const step1 = async () => {
+//   const data: AttackedInformation[] = await fetchStepData(0);
+//   const wallet3Eth = data[2].chains[0];
+//   const transactionHash = wallet3Eth.attackRootTransactionHashes[0]
+//   const report = await generateAttackReport(
+//     transactionHash,
+//     new ethers.JsonRpcProvider(wallet3Eth.chainInfo.rpcUrl),
+//   );
+//   writeStepDataWithTransactionHashIndex(1, report, transactionHash)
+// };
+
+export const step1 = async (startingTransactionHash: string = '') => {
+  let pastStartingTransactionHash = startingTransactionHash === ''
   const data: AttackedInformation[] = await fetchStepData(0);
-  const wallet3Eth = data[2].chains[0];
-  const transactionHash = wallet3Eth.attackRootTransactionHashes[0]
-  const report = await generateAttackReport(
-    transactionHash,
-    new ethers.JsonRpcProvider(wallet3Eth.chainInfo.rpcUrl),
-  );
-  console.log(report)
-  writeStepDataWithTransactionHashIndex(1, report, transactionHash)
+  for (let walletIndex = 0; walletIndex < data.length; walletIndex++) {
+    const wallet = data[walletIndex];
+    for (let chainIndex = 0; chainIndex < wallet.chains.length; chainIndex++) {
+      const chain = wallet.chains[chainIndex];
+      for (let transactionIndex = 0; transactionIndex < chain.attackRootTransactionHashes.length; transactionIndex++) {
+        const transactionHash = chain.attackRootTransactionHashes[transactionIndex];
+
+        if (startingTransactionHash === transactionHash) {
+          pastStartingTransactionHash = true
+        }
+        if (pastStartingTransactionHash) {
+          const report = await generateAttackReport(
+            transactionHash,
+            new ethers.JsonRpcProvider(chain.chainInfo.rpcUrl)
+          );
+          writeStepDataWithTransactionHashIndex(1, report, transactionHash);
+
+        }
+      }
+    }
+  }
 };
-step1()

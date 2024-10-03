@@ -115,7 +115,7 @@ export const fetchTransactionDetails = async (
     if (parsedTransaction.value.toString() !== '0') {
       const ethAmount = ethers.formatEther(parsedTransaction.value);
       tokenDetails = {
-        tokenAddress: 'ETH', // This represents the native currency
+        tokenAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // temp set to weth
         from: parsedTransaction.from,
         to: parsedTransaction.to ?? '', // "to" can be null for contract creation
         amount: ethAmount,

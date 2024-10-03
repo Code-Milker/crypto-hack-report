@@ -65,7 +65,7 @@ export async function processTransaction(
 
   return paths;
 }
-export const step3 = async () => {
+export const step2 = async () => {
   const data: { [transactionHash: string]: TransactionContextPath } = await fetchStepData(1);
   const res = await Promise.all(Object.keys(data).map(async (transaction) => {
     const transactionContextPath = await processTransaction(data[transaction]);
@@ -75,5 +75,5 @@ export const step3 = async () => {
     await writeStepDataWithTransactionHashIndex(2, t.transactionContextPath, t.transactionHash)
   })
 }
-step3()
+step2()
 // Example usage

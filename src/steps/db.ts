@@ -48,8 +48,9 @@ export const writeStepDataWithTransactionHashIndex = async (step: number, data: 
   }
 
   const updatedDb = {
-    ...db, [step]: { ...db[step], [idName]: data }
+    ...db, [step]: { ...db[step], lastSuccessfulHash: idName, [idName]: data }
   }
+  console.log(idName)
   await jsonfile.writeFile(stepFileDb, updatedDb, { spaces: 2 });
   console.log(`successfully wrote data for step ${step}`);
 };
