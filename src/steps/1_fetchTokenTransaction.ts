@@ -1,8 +1,20 @@
 import { ethers } from 'ethers';
-import { fetchBlockInfoFromTransaction, fetchTransactionDetails, getBlockOneWeekAhead } from '../utils';
-import { TransactionPathWithContext } from '../types';
-import { cacheEvents, fetchStepData, getCachedEvents, writeStepDataWithTransactionHashIndex } from './db';
+import {
+  fetchBlockInfoFromTransaction,
+  fetchTransactionDetails,
+  getBlockOneWeekAhead,
+} from '../utils';
+import { ChainInfo, TransactionPathWithContext } from '../types';
+import {
+  cacheEvents,
+  fetchStepData,
+  getCachedEvents,
+  getStepStatus,
+  writeStepDataWithTransactionHashIndex,
+} from './db';
 import { AttackedInformation } from './0_attackInformation';
+import { recursiveFetchEthTransactions } from './test';
+import { chainInfoMap } from '../info';
 // Define the ERC20 ABI with the decimals function
 const erc20ABI = [
   'event Transfer(address indexed from, address indexed to, uint256 value)',
@@ -81,7 +93,6 @@ const fetchOutgoingTokenTransactions = async (
       return { ...transactionWithContext, nextTransactions: [] };
     }),
   );
-
   return transactionDetails;
 };
 
@@ -106,6 +117,7 @@ const recursiveFetchTransactions = async (
     fromTransactionHash,
     transactionLimit,
   );
+  console.log({ transactions });
   // For each transaction, recursively fetch children transactions
   for (const transaction of transactions) {
     // Recursively fetch outgoing transactions from the `to` address and store them in the `children` property
@@ -130,45 +142,67 @@ const recursiveFetchTransactions = async (
 // );
 
 // Start the recursion process
-const generateAttackReport = async (rootTransaction: string, provider: ethers.JsonRpcProvider) => {
-  const depth = 3; // Recursion depth
-  const rootTransactionDetails = (await fetchTransactionDetails(
-    rootTransaction,
-    provider,
-  )) as TransactionPathWithContext;
-  const nextTransactions = await recursiveFetchTransactions(
-    provider,
-    rootTransactionDetails.tokenContractAddress,
-    rootTransactionDetails.to,
-    depth,
-    rootTransaction,
-    20,
-  );
+const generateAttackReport = async (
+  rootTransaction: string,
+  provider: ethers.JsonRpcProvider,
+  chainInfo: ChainInfo,
+) => {
+  const depth = 4; // Recursion depth
+  const limit = 20; // Recursion depth
+  const rootTransactionDetails = await fetchTransactionDetails(rootTransaction, provider);
+  console.log({ rootTransactionDetails });
+  let nextTransactions;
+  if (rootTransactionDetails.tokenContractAddress === null) {
+    nextTransactions = await recursiveFetchEthTransactions(
+      provider,
+      rootTransactionDetails.to,
+      depth,
+      rootTransaction,
+      limit,
+      chainInfo,
+    );
+
+    console.log('eth transaction: ', JSON.stringify(nextTransactions, null, 2));
+  } else {
+    nextTransactions = await recursiveFetchTransactions(
+      provider,
+      rootTransactionDetails.tokenContractAddress,
+      rootTransactionDetails.to,
+      depth,
+      rootTransaction,
+      limit,
+    );
+  }
   const step1Data = { ...rootTransactionDetails, nextTransactions };
   return step1Data;
 };
 
-
-export const step1 = async (startingTransactionHash: string = '') => {
-  let pastStartingTransactionHash = startingTransactionHash === ''
+export const step1 = async () => {
+  const { lastWrittenTransaction } = await getStepStatus(1);
+  let pastStartingTransactionHash = lastWrittenTransaction === '';
   const data: AttackedInformation[] = await fetchStepData(0);
   for (let walletIndex = 0; walletIndex < data.length; walletIndex++) {
     const wallet = data[walletIndex];
     for (let chainIndex = 0; chainIndex < wallet.chains.length; chainIndex++) {
       const chain = wallet.chains[chainIndex];
-      for (let transactionIndex = 0; transactionIndex < chain.attackRootTransactionHashes.length; transactionIndex++) {
+      for (
+        let transactionIndex = 0;
+        transactionIndex < chain.attackRootTransactionHashes.length;
+        transactionIndex++
+      ) {
         const transactionHash = chain.attackRootTransactionHashes[transactionIndex];
 
-        if (startingTransactionHash === transactionHash) {
-          pastStartingTransactionHash = true
+        if (lastWrittenTransaction === transactionHash) {
+          pastStartingTransactionHash = true;
         }
         if (pastStartingTransactionHash) {
+          console.log(chain.chainInfo);
           const report = await generateAttackReport(
             transactionHash,
-            new ethers.JsonRpcProvider(chain.chainInfo.rpcUrl)
+            new ethers.JsonRpcProvider(chain.chainInfo.rpcUrl),
+            chain.chainInfo,
           );
           writeStepDataWithTransactionHashIndex(1, report, transactionHash);
-
         }
       }
     }

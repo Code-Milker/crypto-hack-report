@@ -1,23 +1,32 @@
-
 import { ethers } from 'ethers';
-import { createProvider, fetchBlockInfoFromTransaction, fetchTransactionDetails, getBlockOneWeekAhead } from '../utils';
-import { TransactionPathWithContext } from '../types';
-import 'dotenv/config'; // Loads .env variables into process.env
+import {
+  createProvider,
+  fetchBlockInfoFromTransaction,
+  fetchTransactionDetails,
+  getBlockOneWeekAhead,
+} from '../utils';
+import { ChainInfo, TransactionPathWithContext } from '../types';
 
-const { ETHERSCAN_API_KEY } = process.env;
 // Fetch outgoing ETH transactions via Etherscan
 const fetchOutgoingEthTransactionsViaEtherscan = async (
+  provider: ethers.Provider,
   account: string,
-  apiKey: string,
+  fromTransactionHash: string, // Transaction hash to start from
+  chainInfo: ChainInfo,
 ): Promise<TransactionPathWithContext[]> => {
-  const url = `https://api.etherscan.io/api?module=account&action=txlist&address=${account}&startblock=0&endblock=99999999&sort=asc&apikey=${apiKey}`;
-
+  // Get the block for the provided transaction hash
+  //
+  const startBlock = await fetchBlockInfoFromTransaction(fromTransactionHash, provider);
+  const endBlock = getBlockOneWeekAhead(startBlock.number);
+  console.log(chainInfo);
+  const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${account}&startblock=${startBlock.number}&endblock=${endBlock}&sort=asc&apikey=${chainInfo.apiKey}`;
+  console.log(url);
   const response = await fetch(url);
   const data = await response.json();
-
+  console.log(data);
   // Filter for outgoing ETH transactions
   const outgoingTransactions = data.result.filter(
-    (tx: any) => tx.from.toLowerCase() === account.toLowerCase() && tx.value > 0
+    (tx: any) => tx.from.toLowerCase() === account.toLowerCase() && tx.value > 0,
   );
 
   // Map to TransactionPathWithContext format
@@ -41,18 +50,21 @@ const fetchOutgoingEthTransactionsViaEtherscan = async (
 };
 
 // Example integration with recursive function
-const recursiveFetchEthTransactions = async (
-  apiKey: string,
+export const recursiveFetchEthTransactions = async (
+  provider: ethers.Provider,
   startAddress: string,
   depth: number,
+  fromTransactionHash: string,
   transactionLimit: number,
+  chainInfo: ChainInfo,
 ): Promise<TransactionPathWithContext[]> => {
   if (depth === 0) return [];
-
   // Fetch outgoing ETH transactions via Etherscan
   const ethTransactions = await fetchOutgoingEthTransactionsViaEtherscan(
+    provider,
     startAddress,
-    apiKey,
+    fromTransactionHash,
+    chainInfo,
   );
 
   // Limit the number of transactions returned
@@ -61,10 +73,12 @@ const recursiveFetchEthTransactions = async (
   for (const transaction of limitedTransactions) {
     // Recursively fetch outgoing ETH transactions from the `to` address
     const nextTransactions = await recursiveFetchEthTransactions(
-      apiKey,
+      provider,
       transaction.to,
       depth - 1,
+      transaction.transactionHash,
       transactionLimit,
+      chainInfo,
     );
     transaction.nextTransactions = nextTransactions;
   }
@@ -72,23 +86,5 @@ const recursiveFetchEthTransactions = async (
   return limitedTransactions;
 };
 
-// Initialize the provider using ethers.providers (if needed for other uses)
-
-const generateAttackReport = async (rootTransaction: string,) => {
-  const depth = 3; // Recursion depth
-  const rootTransactionDetails = (await fetchTransactionDetails(
-    rootTransaction,
-    provider,
-  )) as TransactionPathWithContext;
-  console.log(rootTransactionDetails)
-  console.log(ETHERSCAN_API_KEY)
-  const nextTransactions = await recursiveFetchEthTransactions(
-    ETHERSCAN_API_KEY as string,
-    rootTransactionDetails.to,
-    depth,
-    20,
-  );
-  console.log(JSON.stringify({ ...rootTransactionDetails, nextTransactions }, null, 2))
-};
-const provider = createProvider('https://mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602')
-generateAttackReport('0x8875e20371a82b6be0a1c08399327d44602858ea1fa20d7a526a6c350a5ea51f')
+// generateAttackReport('0x8875e20371a82b6be0a1c08399327d44602858ea1fa20d7a526a6c350a5ea51f', provider)
+// generateAttackReport('0xab98d7cca89bbf1b5aa3008ac7c831d63db19e40a53442ebe489a44eeae69739', provider)

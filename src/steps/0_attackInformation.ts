@@ -1,6 +1,6 @@
 import { ATTACKED_WALLET_1, ATTACKED_WALLET_2, ATTACKED_WALLET_3, chainInfoMap } from '../info';
 import { ChainId, ChainInfo } from '../types';
-import { writeStepData0 } from './db';
+import { deleteDb, writeStepData } from './db';
 
 // Enum for chain IDs
 
@@ -74,7 +74,9 @@ const attackInformation: AttackedInformation[] = [
       {
         chainId: ChainId.Gnosis,
         chainInfo: chainInfoMap.get(ChainId.Gnosis) as ChainInfo,
-        attackRootTransactionHashes: ['0x74a4CEb40a6ced4a6b7028458C01cd4962e37B48'],
+        attackRootTransactionHashes: [
+          '0x991f19459caebd0c0ab5cd09d906bac001146d66a06fa4eda58a50659887d84a',
+        ],
       },
     ],
   },
@@ -92,7 +94,8 @@ const attackInformation: AttackedInformation[] = [
     ],
   },
 ];
-export const step0 = () => {
-
-  writeStepData0(0, attackInformation);
-}
+export const step0 = async () => {
+  await deleteDb(0);
+  const res = await writeStepData(0, attackInformation);
+  return res;
+};

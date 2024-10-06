@@ -1,3 +1,15 @@
+import 'dotenv/config'; // Loads .env variables into process.env
+
+const {
+  ETHERSCAN_API_KEY, // Ethereum Mainnet API key
+  ARBISCAN_API_KEY, // Arbitrum Mainnet API key
+  POLYGONSCAN_API_KEY, // Polygon Mainnet API key
+  GNOSISSCAN_API_KEY, // Gnosis Chain API key
+  FTMSCAN_API_KEY, // Fantom Mainnet API key
+  OPTIMISM_API_KEY, // Optimism Mainnet API key
+  BSCSCAN_API_KEY, // Binance Smart Chain API key
+  SNOWTRACE_API_KEY, // Avalanche Mainnet API key
+} = process.env;
 import { ChainId, ChainInfo } from './types';
 
 interface UrlLink {
@@ -134,45 +146,52 @@ export const ATTACKED_WALLET_3 = '0x8Ba3091b423aCd810954692293cb3C4E764B6001';
 //     associatedTransactionHash: [],
 //   },
 // ];
-
+const infuraKey = '23359d7bbef7404088daa7fbb1d256dd';
 export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
   [
     ChainId.Ethereum, // Ethereum Mainnet
     {
       name: 'Ethereum Mainnet',
-      rpcUrl: 'https://mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
+      rpcUrl: 'https://mainnet.infura.io/v3/' + infuraKey,
       nativeCurrency: {
         name: 'Ether',
         symbol: 'ETH',
         decimals: 18,
       },
       blockExplorerUrl: 'https://etherscan.io',
+      blockExplorerApiUrl: 'https://api.etherscan.io/api/', // Etherscan API URL for Ethereum
+      apiKey: ETHERSCAN_API_KEY as string,
     },
   ],
   [
     ChainId.Arbitrum, // Arbitrum One Mainnet
     {
       name: 'Arbitrum One',
-      rpcUrl: 'https://arbitrum-mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
+      rpcUrl: 'https://arbitrum-mainnet.infura.io/v3/' + infuraKey,
       nativeCurrency: {
         name: 'Ether',
         symbol: 'ETH',
         decimals: 18,
       },
       blockExplorerUrl: 'https://arbiscan.io',
+      blockExplorerApiUrl: 'https://api.arbiscan.io/api', // Arbiscan API URL for Arbitrum
+      apiKey: ARBISCAN_API_KEY as string,
     },
   ],
   [
     ChainId.Polygon, // Polygon Mainnet
     {
       name: 'Polygon Mainnet',
-      rpcUrl: 'https://polygon-mainnet.infura.io/v3/5e6e5a11eb5f492792fb05057a80a602',
+
+      rpcUrl: 'https://polygon-mainnet.infura.io/v3/' + infuraKey,
       nativeCurrency: {
         name: 'Matic',
         symbol: 'MATIC',
         decimals: 18,
       },
       blockExplorerUrl: 'https://polygonscan.com',
+      blockExplorerApiUrl: 'https://api.polygonscan.com/api', // Polygonscan API URL for Polygon
+      apiKey: POLYGONSCAN_API_KEY as string,
     },
   ],
   [
@@ -186,6 +205,8 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
         decimals: 18,
       },
       blockExplorerUrl: 'https://gnosisscan.io',
+      blockExplorerApiUrl: 'https://api.gnosisscan.io/api', // Gnosis Scan API URL for Gnosis Chain
+      apiKey: GNOSISSCAN_API_KEY as string,
     },
   ],
   [
@@ -199,6 +220,8 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
         decimals: 18,
       },
       blockExplorerUrl: 'https://ftmscan.com',
+      blockExplorerApiUrl: 'https://api.ftmscan.com/api', // Ftmscan API URL for Fantom
+      apiKey: FTMSCAN_API_KEY as string,
     },
   ],
   [
@@ -212,6 +235,9 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
         decimals: 18,
       },
       blockExplorerUrl: 'https://optimistic.etherscan.io',
+      blockExplorerApiUrl: 'https://api-optimistic.etherscan.io/api', // Optimism Etherscan API URL
+
+      apiKey: OPTIMISM_API_KEY as string,
     },
   ],
 ]);

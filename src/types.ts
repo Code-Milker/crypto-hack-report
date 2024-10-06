@@ -67,4 +67,6 @@ export type ChainInfo = {
     decimals: number;
   };
   blockExplorerUrl: string;
+  blockExplorerApiUrl: string;
+  apiKey: string;
 };

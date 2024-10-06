@@ -39,21 +39,23 @@ export const createProvider = (rpcUrl: string): ethers.JsonRpcProvider => {
 
 // ABI to fetch decimals dynamically from the token contract
 const erc20Abi = ['function decimals() view returns (uint8)'];
-
 export const fetchTransactionDetails = async (
   transactionHash: string,
   provider: ethers.Provider,
 ): Promise<
-  Omit<TransactionPathWithContext, 'nextTransactions'> | TransactionPathWithFailedContext | null
+  { tokenContractAddress: null | string } & Omit<
+    TransactionPathWithContext,
+    'nextTransactions' | 'tokenContractAddress'
+  >
 > => {
   try {
     // Fetch transaction details from ethers.js
     const transaction = await provider.getTransaction(transactionHash);
-
+    console.log({ transaction, transactionHash });
     // Validate the transaction object using Zod
     const validationResult = transactionSchema.safeParse(transaction);
     if (!validationResult.success) {
-      return { error: 'Transaction validation failed' }; // Return an error if Zod validation fails
+      throw { error: 'Transaction validation failed' }; // Return an error if Zod validation fails
     }
     const parsedTransaction = validationResult.data;
 
@@ -69,8 +71,12 @@ export const fetchTransactionDetails = async (
     }
 
     // Decode token transfer details from logs
-    let tokenDetails: { tokenAddress: string; from: string; to: string; amount: string, } | null =
-      null;
+    let tokenDetails: {
+      tokenAddress: string | null;
+      from: string;
+      to: string;
+      amount: string;
+    } | null = null;
     for (const log of receipt.logs) {
       const decodedLog = decodeERC20TransferLog(log, erc20Interface);
       if (decodedLog) {
@@ -115,7 +121,7 @@ export const fetchTransactionDetails = async (
     if (parsedTransaction.value.toString() !== '0') {
       const ethAmount = ethers.formatEther(parsedTransaction.value);
       tokenDetails = {
-        tokenAddress: 'ETH', // temp set to weth
+        tokenAddress: null, // temp set to weth
         from: parsedTransaction.from,
         to: parsedTransaction.to ?? '', // "to" can be null for contract creation
         amount: ethAmount,
@@ -131,15 +137,14 @@ export const fetchTransactionDetails = async (
       blockNumber: parsedTransaction.blockNumber ?? -1,
       ensName,
       tokenAmount: tokenDetails?.amount ?? '',
-      tokenContractAddress: tokenDetails?.tokenAddress ?? '',
+      tokenContractAddress: tokenDetails?.tokenAddress ?? null,
     };
   } catch (error) {
+    console.log(error);
     if (error instanceof z.ZodError) {
-      console.error('Validation Error:', error);
-      return { error: 'Validation Error' };
+      throw { error: 'Validation Error', message: error };
     } else {
-      console.error(`Error fetching details for transaction: ${transactionHash}`, error);
-      return null;
+      throw { error: `Error fetching details for transaction: ${transactionHash}`, message: error };
     }
   }
 };
@@ -208,14 +213,14 @@ export const buildTransactionPath = (attack: {
 };
 
 export const fetchBlockInfoFromTransaction = async (
-  txHash: string,
+  transactionHash: string,
   provider: ethers.Provider,
 ): Promise<ethers.Block> => {
   // Step 1: Fetch transaction receipt
-  const txReceipt = await provider.getTransactionReceipt(txHash);
+  const txReceipt = await provider.getTransactionReceipt(transactionHash);
 
   if (!txReceipt) {
-    throw Error('Transaction not found');
+    throw Error('Transaction not found ' + transactionHash);
   }
 
   // Step 2: Get the block number from the transaction receipt

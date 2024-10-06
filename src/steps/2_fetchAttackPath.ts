@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import { TransactionContext, TransactionContextPath, TransactionPathWithContext } from '../types';
 import { fetchStepData, writeStepDataWithTransactionHashIndex } from './db';
 
-
 // Function to construct the Etherscan filter link
 function getEtherscanLink(transactionContext: TransactionContextPath): string {
   const formattedDate = new Date(transactionContext.timeStamp).toISOString().split('T')[0]; // Format date as YYYY-MM-DD
@@ -50,11 +49,10 @@ const followTransactionFlow = (
 
 // Main function to process the transaction
 export async function processTransaction(
-  data: TransactionContextPath
+  data: TransactionContextPath,
 ): Promise<
   { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[]
 > {
-
   // const transactionData = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
   const paths = await Promise.all(
@@ -68,15 +66,15 @@ export async function processTransaction(
 }
 export const step2 = async () => {
   const data: { [transactionHash: string]: TransactionContextPath } = await fetchStepData(1);
-  const { lastSuccessfulHash, ...dataToUse } = data
-  const res = await Promise.all(Object.keys(dataToUse).map(async (transaction) => {
-    // console.log(data[transaction])
-    const transactionContextPath = await processTransaction(data[transaction]);
-    return { transactionHash: data[transaction].transactionHash, transactionContextPath }
-  }))
-  res.forEach(async t => {
-    await writeStepDataWithTransactionHashIndex(2, t.transactionContextPath, t.transactionHash)
-  })
-}
-step2()
+  const res = await Promise.all(
+    Object.keys(data).map(async (transaction) => {
+      // console.log(data[transaction])
+      const transactionContextPath = await processTransaction(data[transaction]);
+      return { transactionHash: data[transaction].transactionHash, transactionContextPath };
+    }),
+  );
+  for (const t of res) {
+    await writeStepDataWithTransactionHashIndex(2, t.transactionContextPath, t.transactionHash);
+  }
+};
 // Example usage

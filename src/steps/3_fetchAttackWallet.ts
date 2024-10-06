@@ -2,7 +2,11 @@ import { WalletType, KnownWallets, WalletInformation, KnownWalletsMap } from '..
 import { fetchStepData, writeStepDataWithTransactionHashIndex } from './db';
 import { TransactionContextPath } from '../types';
 // Main function to process the transaction
-async function fetchAttackWalletsAndPath(attacks: { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[]
+async function fetchAttackWalletsAndPath(
+  attacks: {
+    transactionContextPath: TransactionContextPath[];
+    tokenSplitOrCombinationHash?: string;
+  }[],
 ): Promise<{ wallets: string[]; path: string[]; id: number }[]> {
   if (!attacks.length) {
     throw Error('no attacks found');
@@ -30,9 +34,8 @@ async function fetchAttackWalletsAndPath(attacks: { transactionContextPath: Tran
   return wallets;
 }
 const lookUpKnownWallets = (res: { wallets: string[]; path: string[]; id: number }[]) => {
-
   return res.map((a) => {
-    const walletsWithInfo: { [address: string]: WalletInformation } = {}
+    const walletsWithInfo: { [address: string]: WalletInformation } = {};
     const updatedWallets = a.wallets.forEach((w, i) => {
       let matchingWallet: WalletInformation = KnownWallets[w] || {
         alias: '',
@@ -49,32 +52,38 @@ const lookUpKnownWallets = (res: { wallets: string[]; path: string[]; id: number
           chainIds: [],
           urlLinks: [],
           associatedAddresses: {},
-        }
+        };
       }
 
-      walletsWithInfo[w] = matchingWallet
+      walletsWithInfo[w] = matchingWallet;
     });
-    console.log(walletsWithInfo)
-    return { ...a, wallets: walletsWithInfo }
+    console.log(walletsWithInfo);
+    return { ...a, wallets: walletsWithInfo };
     // console.log(knownWalletsMap);
   });
-}
+};
 
 export const step3 = async () => {
-  const data: { [transactionHash: string]: { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[] } = await fetchStepData(2);
-  const transactions = await Promise.all(Object.keys(data).map(async key => {
-    const addressesInvolved = await fetchAttackWalletsAndPath(data[key])
-    const addressesIdentity = lookUpKnownWallets(addressesInvolved);
+  const data: {
+    [transactionHash: string]: {
+      transactionContextPath: TransactionContextPath[];
+      tokenSplitOrCombinationHash?: string;
+    }[];
+  } = await fetchStepData(2);
+  const transactions = await Promise.all(
+    Object.keys(data).map(async (key) => {
+      const addressesInvolved = await fetchAttackWalletsAndPath(data[key]);
+      const addressesIdentity = lookUpKnownWallets(addressesInvolved);
 
-    return {
-      [key]: addressesIdentity
-    }
-  }))
+      return {
+        [key]: addressesIdentity,
+      };
+    }),
+  );
   Object.keys(transactions).forEach(async (t) => {
-    await writeStepDataWithTransactionHashIndex(3, transactions, t)
-  })
-}
-
+    await writeStepDataWithTransactionHashIndex(3, transactions, t);
+  });
+};
 
 step3();
 // if (index === 0) {
