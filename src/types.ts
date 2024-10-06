@@ -29,7 +29,7 @@ export interface TransactionContext {
 export interface TransactionPathWithFailedContext {
   error: string;
 }
-export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack {}
+export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack { }
 export interface TransactionContextPath extends TransactionContext {
   nextTransactions: TransactionContextPath[];
 }
@@ -46,7 +46,7 @@ export interface RawTransactionMetaData {
 }
 export interface RawTransactionAttackWithMetaData
   extends RawTransactionMetaData,
-    RawTransactionAttack {}
+  RawTransactionAttack { }
 
 export enum ChainId {
   Ethereum = 1,
@@ -69,4 +69,5 @@ export type ChainInfo = {
   blockExplorerUrl: string;
   blockExplorerApiUrl: string;
   apiKey: string;
+  attackRootTransactionHashes?: string[]
 };

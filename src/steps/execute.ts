@@ -6,18 +6,17 @@ import { step1 } from './1_fetchTokenTransaction';
 import { step2 } from './2_fetchAttackPath';
 import { step3 } from './3_fetchAttackWallet';
 import { deleteDb } from './db';
-const provider = createProvider(chainInfoMap.get(ChainId.Ethereum)?.rpcUrl as string);
 // step0()
 // step1('')
 //
 const run = async () => {
   await deleteDb(0)
-  await deleteDb(2)
+  // await deleteDb(2)
   await deleteDb(3)
   await step0()
   // await step1()
   await step2();
-  await step3()
+  // await step3()
   // const res = await fetchBlockInfoFromTransaction('0x8875e20371a82b6be0a1c08399327d44602858ea1fa20d7a526a6c350a5ea51f', provider)
 };
 run();

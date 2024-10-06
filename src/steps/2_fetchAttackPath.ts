@@ -1,6 +1,7 @@
 import * as fs from 'fs';
-import { TransactionContext, TransactionContextPath, TransactionPathWithContext } from '../types';
+import { ChainInfo, TransactionContext, TransactionContextPath, TransactionPathWithContext } from '../types';
 import { fetchStepData, writeStepDataWithTransactionHashIndex } from './db';
+import { AttackedInformation } from './0_attackInformation';
 
 // Function to construct the Etherscan filter link
 function getEtherscanLink(transactionContext: TransactionContextPath): string {
@@ -66,15 +67,31 @@ export async function processTransaction(
 }
 export const step2 = async () => {
   const data: { [transactionHash: string]: TransactionContextPath } = await fetchStepData(1);
+  const step0Data: AttackedInformation[] = await fetchStepData(0)
   const res = await Promise.all(
-    Object.keys(data).map(async (transaction) => {
+    Object.keys(data).map(async (transactionHash) => {
       // console.log(data[transaction])
-      const transactionContextPath = await processTransaction(data[transaction]);
-      return { transactionHash: data[transaction].transactionHash, transactionContextPath };
+      const transactionContextPath = await processTransaction(data[transactionHash]);
+      let chainInfo: ChainInfo | {} = {};
+      step0Data.forEach(a => {
+        a.chains.forEach(c => {
+          c.attackRootTransactionHashes.forEach(att => {
+            if (att === transactionHash) {
+              chainInfo = c.chainInfo
+            }
+          }
+          )
+        })
+      })
+      // console.log(chainInfo)
+      return {
+        transactionHash: data[transactionHash].transactionHash, payload: { transactionContextPath, chainInfo: chainInfo }
+      }
     }),
   );
   for (const t of res) {
-    await writeStepDataWithTransactionHashIndex(2, t.transactionContextPath, t.transactionHash);
+    console.log(t.payload)
+    // await writeStepDataWithTransactionHashIndex(2, t.payload, t.transactionHash);
   }
 };
 // Example usage

@@ -117,7 +117,6 @@ const recursiveFetchTransactions = async (
     fromTransactionHash,
     transactionLimit,
   );
-  console.log({ transactions });
   // For each transaction, recursively fetch children transactions
   for (const transaction of transactions) {
     // Recursively fetch outgoing transactions from the `to` address and store them in the `children` property
@@ -196,7 +195,6 @@ export const step1 = async () => {
           pastStartingTransactionHash = true;
         }
         if (pastStartingTransactionHash) {
-          console.log(chain.chainInfo);
           const report = await generateAttackReport(
             transactionHash,
             new ethers.JsonRpcProvider(chain.chainInfo.rpcUrl),
