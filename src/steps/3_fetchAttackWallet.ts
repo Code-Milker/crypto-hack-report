@@ -8,6 +8,7 @@ async function fetchAttackWalletsAndPath(
     tokenSplitOrCombinationHash?: string;
   }[],
 ): Promise<{ wallets: string[]; path: string[]; id: number }[]> {
+  // console.log(attacks)
   if (!attacks.length) {
     throw Error('no attacks found');
   }
@@ -57,7 +58,7 @@ const lookUpKnownWallets = (res: { wallets: string[]; path: string[]; id: number
 
       walletsWithInfo[w] = matchingWallet;
     });
-    console.log(walletsWithInfo);
+    // console.log(walletsWithInfo);
     return { ...a, wallets: walletsWithInfo };
     // console.log(knownWalletsMap);
   });
@@ -72,20 +73,30 @@ export const step3 = async () => {
   } = await fetchStepData(2);
   const transactions = await Promise.all(
     Object.keys(data).map(async (key) => {
-      const addressesInvolved = await fetchAttackWalletsAndPath(data[key]);
-      const addressesIdentity = lookUpKnownWallets(addressesInvolved);
+      if (data[key].length) {
 
-      return {
-        [key]: addressesIdentity,
-      };
+        const addressesInvolved = await fetchAttackWalletsAndPath(data[key]);
+        const addressesIdentity = lookUpKnownWallets(addressesInvolved);
+        return {
+          [key]: addressesIdentity,
+        }
+      }
+      return { [key]: [] }
     }),
   );
-  Object.keys(transactions).forEach(async (t) => {
-    await writeStepDataWithTransactionHashIndex(3, transactions, t);
-  });
+  let transactionsObj = {}
+  transactions.forEach(t => {
+    console.log(t)
+    transactionsObj = { ...transactionsObj, ...t }
+
+  })
+  console.log(transactionsObj)
+  for (const [key, value] of Object.entries(transactionsObj)) {
+    // console.log({ key, value })
+    await writeStepDataWithTransactionHashIndex(3, value, key);
+  }
 };
 
-step3();
 // if (index === 0) {
 //   WALLET_THAT_WAS_COMPROMISED
 // }

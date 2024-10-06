@@ -14,7 +14,7 @@ const followTransactionFlow = (
   transaction: TransactionContextPath,
   transactionContextPath: TransactionContextPath[],
   startAt: number | null,
-): { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string } => {
+): { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: { link: string, manuallyUpdatedTransaction: string } } => {
   const matchingTransactions = transaction.nextTransactions
     .filter((t) => {
       return (
@@ -42,7 +42,7 @@ const followTransactionFlow = (
   } else {
     return {
       transactionContextPath: transactionContextPath.reverse(),
-      tokenSplitOrCombinationHash: getEtherscanLink(transaction),
+      tokenSplitOrCombinationHash: { link: getEtherscanLink(transaction), manuallyUpdatedTransaction: '' },
     };
   }
 };
@@ -51,7 +51,7 @@ const followTransactionFlow = (
 export async function processTransaction(
   data: TransactionContextPath,
 ): Promise<
-  { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: string }[]
+  { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: { link: string, manuallyUpdatedTransaction: string } }[]
 > {
   // const transactionData = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
