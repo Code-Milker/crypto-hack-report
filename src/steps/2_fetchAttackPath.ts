@@ -20,7 +20,7 @@ const followTransactionFlow = (
     .filter((t) => {
       return (
         t.tokenContractAddress === transaction.tokenContractAddress &&
-        t.tokenAmount === transaction.tokenAmount
+        t.amount === transaction.amount
       );
     })
     .sort((a, b) => a.blockNumber - b.blockNumber);

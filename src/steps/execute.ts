@@ -1,12 +1,7 @@
 import { ethers } from 'ethers';
 import { chainInfoMap } from '../info';
 import { ChainId, ChainInfo } from '../types';
-import { createProvider, fetchBlockInfoFromTransaction, fetchTransactionDetails } from '../utils';
-import { step0 } from './0_attackInformation';
 import { generateAttackReport, step1 } from './1_fetchTokenTransaction';
-import { step2 } from './2_fetchAttackPath';
-import { step3 } from './3_fetchAttackWallet';
-import { deleteDb } from './db';
 // step0()
 // step1('')
 //
@@ -18,7 +13,7 @@ const run = async () => {
     new ethers.JsonRpcProvider(chain.rpcUrl),
     chain,
   );
-  console.log(report)
+  console.log(JSON.stringify(report, null, 2))
   // await deleteDb(0)
   // // await deleteDb(2)
   // await deleteDb(3)

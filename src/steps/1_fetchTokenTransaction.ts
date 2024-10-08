@@ -4,7 +4,7 @@ import {
   fetchTransactionDetails,
   getBlockOneWeekAhead,
 } from '../utils';
-import { ChainInfo, TransactionPathWithContext } from '../types';
+import { ChainInfo, TokenTransactionContext, TransactionContext, TransactionPathFromAttack, } from '../types';
 import {
   cacheEvents,
   fetchStepData,
@@ -14,7 +14,6 @@ import {
 } from './db';
 import { AttackedInformation } from './0_attackInformation';
 import { recursiveFetchEthTransactions } from './test';
-import { chainInfoMap } from '../info';
 // Define the ERC20 ABI with the decimals function
 const erc20ABI = [
   'event Transfer(address indexed from, address indexed to, uint256 value)',
@@ -85,13 +84,13 @@ const fetchOutgoingTokenTransactions = async (
   const limitedEvents = eventsOutgoing
     .sort((a, b) => a.blockNumber - b.blockNumber)
     .slice(0, transactionLimit);
-  const transactionDetails: TransactionPathWithContext[] = await Promise.all(
+  const transactionDetails: TokenTransactionContext[] | TransactionContext[] = await Promise.all(
     limitedEvents.map(async (event) => {
-      const transactionWithContext: TransactionPathWithContext = await fetchTransactionDetails(
+      const transactionWithContext: TokenTransactionContext | TransactionContext = await fetchTransactionDetails(
         event.transactionHash,
         provider,
       ).then();
-      return { ...transactionWithContext, nextTransactions: [] };
+      return { ...transactionWithContext, };
     }),
   );
   return transactionDetails;
@@ -105,9 +104,9 @@ const recursiveFetchTransactions = async (
   depth: number,
   fromTransactionHash: string,
   transactionLimit: number,
-) => {
+): Promise<TransactionPathFromAttack[]> => {
   console.log('at depth: ', depth);
-  console.log('fetching for transaction', fromTransactionHash);
+  console.log('fetching for transaction: ', fromTransactionHash);
   if (depth === 0) return [];
 
   // Fetch outgoing transactions for the startAddress
@@ -119,6 +118,7 @@ const recursiveFetchTransactions = async (
     transactionLimit,
   );
   // For each transaction, recursively fetch children transactions
+  const res: TransactionPathFromAttack[] = []
   for (const transaction of transactions) {
     // Recursively fetch outgoing transactions from the `to` address and store them in the `children` property
     const nextTransactions = await recursiveFetchTransactions(
@@ -129,11 +129,9 @@ const recursiveFetchTransactions = async (
       transaction.transactionHash,
       transactionLimit, // Pass the current transaction's hash as the starting point for the next recursion
     );
-
-    // Assign the child transactions to the `children` attribute
-    transaction.nextTransactions = nextTransactions;
+    res.push({ ...transaction, nextTransactions: nextTransactions })
   }
-  return transactions;
+  return res;
 };
 
 // Initialize the provider using ethers.providers
@@ -148,21 +146,11 @@ export const generateAttackReport = async (
   chainInfo: ChainInfo,
 ) => {
   const depth = 5; // Recursion depth
-  const limit = 1; // Recursion depth
-  const rootTransactionDetails = await fetchTransactionDetails(rootTransaction, provider);
-  console.log(rootTransactionDetails)
+  const limit = 5; // Recursion depth
+  const rootTransactionDetails: TokenTransactionContext | TransactionContext = await fetchTransactionDetails(rootTransaction, provider);
   let nextTransactions;
-  if (rootTransactionDetails.tokenContractAddress === null) {
-    nextTransactions = await recursiveFetchEthTransactions(
-      provider,
-      rootTransactionDetails.to,
-      depth,
-      rootTransaction,
-      limit,
-      chainInfo,
-    );
-
-  } else {
+  if ('tokenContractAddress' in rootTransactionDetails) {
+    console.log('erc-20 token fetch: ')
     nextTransactions = await recursiveFetchTransactions(
       provider,
       rootTransactionDetails.tokenContractAddress,
@@ -170,6 +158,16 @@ export const generateAttackReport = async (
       depth,
       rootTransaction,
       limit,
+    );
+  } else {
+    console.log('native token fetch: ')
+    nextTransactions = await recursiveFetchEthTransactions(
+      provider,
+      rootTransactionDetails.to,
+      depth,
+      rootTransaction,
+      limit,
+      chainInfo,
     );
   }
   const step1Data = { ...rootTransactionDetails, nextTransactions };

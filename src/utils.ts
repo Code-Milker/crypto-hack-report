@@ -1,38 +1,11 @@
 import { ethers } from 'ethers';
 import {
-  RawTransactionAttackWithMetaData,
-  TransactionPathFromAttack,
-  TransactionPathWithContext,
-  TransactionPathWithFailedContext,
+  TokenTransactionContext,
+  TransactionContext
 } from './types';
 import 'dotenv/config'; // Loads .env variables into process.env
 import { transactionSchema } from './types';
 import { z } from 'zod';
-import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
-import * as path from 'path';
-export const fetchTransaction = async (attack: RawTransactionAttackWithMetaData) => {
-  const fileName = getFileName(attack);
-  const provider = createProvider(attack.rpcUrl);
-  const dirPath = path.dirname(fileName);
-  if (!existsSync(dirPath)) {
-    mkdirSync(dirPath, { recursive: true }); // Create directory if it doesn't exist
-  }
-
-  // Build the transaction path from the attack
-  const transactionPathFromAttack = buildTransactionPath(attack);
-
-  // Fetch the transaction path details
-  const attackDetails = await fetchTransactionPathDetails(transactionPathFromAttack, provider);
-
-  // If the file already exists, delete it to clear it
-  if (existsSync(fileName)) {
-    unlinkSync(fileName);
-  }
-
-  // Write the output to the file
-  console.log(JSON.stringify(attackDetails, null, 2));
-  writeFileSync(fileName, JSON.stringify(attackDetails, null, 2));
-};
 export const createProvider = (rpcUrl: string): ethers.JsonRpcProvider => {
   return new ethers.JsonRpcProvider(rpcUrl);
 };
@@ -46,12 +19,7 @@ const erc20Abi = ['function decimals() view returns (uint8)'];
 export const fetchTransactionDetails = async (
   transactionHash: string,
   provider: ethers.Provider,
-): Promise<
-  { tokenContractAddress: string | null } & Omit<
-    TransactionPathWithContext,
-    'nextTransactions' | 'tokenContractAddress'
-  >
-> => {
+): Promise<TokenTransactionContext | TransactionContext> => {
   // Fetch transaction details
   const transaction = await provider.getTransaction(transactionHash);
 
@@ -68,8 +36,6 @@ export const fetchTransactionDetails = async (
     throw new Error(`Transaction receipt not found for ${transactionHash}`);
   }
 
-  // Decode ERC-20 token transfer from logs
-  const tokenDetails = await decodeTokenTransfer(receipt.logs, provider);
 
   // Fetch ENS name, if available
   const ensName = await fetchENSName(parsedTransaction.to, provider);
@@ -80,17 +46,19 @@ export const fetchTransactionDetails = async (
   // If the transaction involves ETH, format its value
   if (parsedTransaction.value.toString() !== '0') {
     const ethAmount = ethers.formatEther(parsedTransaction.value);
-    return {
+    const res: TransactionContext = {
       transactionHash,
       to: parsedTransaction.to ?? '',
       from: parsedTransaction.from,
       timeStamp,
       blockNumber: parsedTransaction.blockNumber ?? -1,
       ensName,
-      tokenAmount: ethAmount,
-      tokenContractAddress: null, // No token contract address for ETH
+      amount: ethAmount,
     };
+    return res;
   }
+  // Decode ERC-20 token transfer from logs
+  const tokenDetails = await decodeTokenTransfer(receipt.logs, provider);
 
   // Return token transfer details if found, otherwise return empty details
   return {
@@ -100,18 +68,24 @@ export const fetchTransactionDetails = async (
     timeStamp,
     blockNumber: parsedTransaction.blockNumber ?? -1,
     ensName,
-    tokenAmount: tokenDetails?.amount ?? '',
+    amount: tokenDetails?.amount ?? '',
     tokenContractAddress: tokenDetails?.tokenAddress ?? null,
   };
 };
 
 // Helper functions
 
-const decodeTokenTransfer = async (logs: readonly ethers.Log[], provider: ethers.Provider) => {
+type TokenTransferDetails = {
+  tokenAddress: string;
+  from: string;
+  to: string;
+  amount: string;
+};
+const decodeTokenTransfer = async (logs: readonly ethers.Log[], provider: ethers.Provider): Promise<TokenTransferDetails> => {
   const erc20Interface = new ethers.Interface([
     'event Transfer(address indexed from, address indexed to, uint256 value)',
   ]);
-
+  console.log(logs)
   for (const log of logs) {
     const decodedLog = decodeERC20TransferLog(log, erc20Interface);
     if (decodedLog) {
@@ -119,16 +93,24 @@ const decodeTokenTransfer = async (logs: readonly ethers.Log[], provider: ethers
 
       // Fetch token decimals
       const decimals = await fetchTokenDecimals(tokenAddress, provider);
-
-      return {
+      const parsedResponse = z.object({
+        tokenAddress: z.string(),
+        from: z.string(),
+        to: z.string(),
+        amount: z.string(),
+      }).safeParse({
         tokenAddress,
         from: decodedLog.from,
         to: decodedLog.to,
         amount: ethers.formatUnits(decodedLog.value, decimals),
-      };
+      });
+      if (!parsedResponse.success) {
+        throw parsedResponse.error
+      }
+      return parsedResponse.data;
     }
   }
-  return null;
+  throw Error('no logs found')
 };
 
 const fetchTokenDecimals = async (tokenAddress: string, provider: ethers.Provider) => {
@@ -172,58 +154,55 @@ const decodeERC20TransferLog = (log: ethers.Log, iface: ethers.Interface) => {
   }
 };
 
-export const fetchTransactionPathDetails = async (
-  transactionPath: TransactionPathFromAttack,
-  provider: ethers.Provider,
-): Promise<any> => {
-  // Fetch details for the current transaction
-  const currentTransactionDetails = await fetchTransactionDetails(
-    transactionPath.transactionHash,
-    provider,
-  );
+// export const fetchTransactionPathDetails = async (
+//   transactionPath: TransactionPathFromAttack,
+//   provider: ethers.Provider,
+// ): Promise<any> => {
+//   // Fetch details for the current transaction
+//   const currentTransactionDetails = await fetchTransactionDetails(
+//     transactionPath.transactionHash,
+//     provider,
+//   );
+//
+//   // Recursively fetch the next transactions
+//   const nextTransactionDetails = [];
+//   for (const nextTransaction of transactionPath.nextTransactions) {
+//     const nextDetail = await fetchTransactionPathDetails(nextTransaction, provider);
+//     if (nextDetail) {
+//       nextTransactionDetails.push(nextDetail);
+//     }
+//   }
+//
+//   return {
+//     ...currentTransactionDetails,
+//     nextTransactions: nextTransactionDetails,
+//   };
+// };
 
-  // Recursively fetch the next transactions
-  const nextTransactionDetails = [];
-  for (const nextTransaction of transactionPath.nextTransactions) {
-    const nextDetail = await fetchTransactionPathDetails(nextTransaction, provider);
-    if (nextDetail) {
-      nextTransactionDetails.push(nextDetail);
-    }
-  }
-
-  return {
-    ...currentTransactionDetails,
-    nextTransactions: nextTransactionDetails,
-  };
-};
-
-export const getFileName = (payload: RawTransactionAttackWithMetaData): string => {
-  return `output/${payload.wallet}/${payload.chainId}/${payload.tokenSymbol}.json`;
-};
 
 // Recursive function to convert each transaction path into a nested structure
-export const convertToTransactionPath = (hashes: string[]): TransactionPathFromAttack => {
-  if (hashes.length === 0) {
-    return { transactionHash: '', nextTransactions: [] };
-  }
-
-  const [first, ...rest] = hashes;
-  return {
-    transactionHash: first,
-    nextTransactions: rest.length ? [convertToTransactionPath(rest)] : [],
-  };
-};
+// export const convertToTransactionPath = (hashes: string[]): TransactionPathFromAttack => {
+//   if (hashes.length === 0) {
+//     return { transactionHash: '', nextTransactions: [] };
+//   }
+//
+//   const [first, ...rest] = hashes;
+//   return {
+//     transactionHash: first,
+//     nextTransactions: rest.length ? [convertToTransactionPath(rest)] : [],
+//   };
+// };
 
 // Function to build the entire transaction path with root and multiple branches
-export const buildTransactionPath = (attack: {
-  rootTransaction: string;
-  transactionsPaths: string[][];
-}): TransactionPathFromAttack => {
-  return {
-    transactionHash: attack.rootTransaction,
-    nextTransactions: attack.transactionsPaths.map((path) => convertToTransactionPath(path)),
-  };
-};
+// export const buildTransactionPath = (attack: {
+//   rootTransaction: string;
+//   transactionsPaths: string[][];
+// }): TransactionPathFromAttack => {
+//   return {
+//     transactionHash: attack.rootTransaction,
+//     nextTransactions: attack.transactionsPaths.map((path) => convertToTransactionPath(path)),
+//   };
+// };
 
 export const fetchBlockInfoFromTransaction = async (
   transactionHash: string,

@@ -11,9 +11,8 @@ export const transactionSchema = z.object({
   chainId: z.bigint(), // The chain ID where the transaction took place
 });
 
-export interface TransactionPathFromAttack {
-  transactionHash: string;
-  nextTransactions: TransactionPathFromAttack[];
+export interface TransactionPathFromAttack extends TransactionContext {
+  nextTransactions: TransactionPathFromAttack[] | TokenTransactionContext[];
 }
 
 export interface TransactionContext {
@@ -22,14 +21,12 @@ export interface TransactionContext {
   timeStamp: string;
   blockNumber: number;
   ensName?: string; // Optional if ENS is not available
-  tokenAmount: string;
-  tokenContractAddress: string;
+  amount: string;
   transactionHash: string;
 }
-export interface TransactionPathWithFailedContext {
-  error: string;
+export interface TokenTransactionContext extends TransactionContext {
+  tokenContractAddress: string;
 }
-export interface TransactionPathWithContext extends TransactionContext, TransactionPathFromAttack { }
 export interface TransactionContextPath extends TransactionContext {
   nextTransactions: TransactionContextPath[];
 }
@@ -38,15 +35,6 @@ export interface RawTransactionAttack {
   rootTransaction: string;
   transactionsPaths: string[][];
 }
-export interface RawTransactionMetaData {
-  chain: string;
-  chainId: string;
-  wallet: string;
-  rpcUrl: string;
-}
-export interface RawTransactionAttackWithMetaData
-  extends RawTransactionMetaData,
-  RawTransactionAttack { }
 
 export enum ChainId {
   Ethereum = 1,
