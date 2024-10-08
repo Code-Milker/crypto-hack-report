@@ -1,0 +1,20 @@
+/Users/tylerfischer/Projects/PoliceReport/node_modules/ts-node/src/index.ts:859
+    return new TSError(diagnosticText, diagnosticCodes, diagnostics);
+           ^
+TSError: ⨯ Unable to compile TypeScript:
+src/utils.ts(73,52): error TS2345: Argument of type 'readonly Log[]' is not assignable to parameter of type 'Log[]'.
+  The type 'readonly Log[]' is 'readonly' and cannot be assigned to the mutable type 'Log[]'.
+src/utils.ts(162,21): error TS18047: 'block' is possibly 'null'.
+
+    at createTSError (/Users/tylerfischer/Projects/PoliceReport/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/tylerfischer/Projects/PoliceReport/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/tylerfischer/Projects/PoliceReport/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/tylerfischer/Projects/PoliceReport/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/tylerfischer/Projects/PoliceReport/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1691:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/tylerfischer/Projects/PoliceReport/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1317:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1127:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14) {
+  diagnosticCodes: [ 2345, 18047 ]
+}

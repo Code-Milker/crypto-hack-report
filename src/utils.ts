@@ -37,117 +37,130 @@ export const createProvider = (rpcUrl: string): ethers.JsonRpcProvider => {
   return new ethers.JsonRpcProvider(rpcUrl);
 };
 
-// ABI to fetch decimals dynamically from the token contract
+
+
+// ERC-20 ABI to fetch decimals
 const erc20Abi = ['function decimals() view returns (uint8)'];
+
+// Function to fetch transaction details
 export const fetchTransactionDetails = async (
   transactionHash: string,
   provider: ethers.Provider,
 ): Promise<
-  { tokenContractAddress: null | string } & Omit<
+  { tokenContractAddress: string | null } & Omit<
     TransactionPathWithContext,
     'nextTransactions' | 'tokenContractAddress'
   >
 > => {
-  try {
-    // Fetch transaction details from ethers.js
-    const transaction = await provider.getTransaction(transactionHash);
-    console.log({ transaction, transactionHash });
-    // Validate the transaction object using Zod
-    const validationResult = transactionSchema.safeParse(transaction);
-    if (!validationResult.success) {
-      throw { error: 'Transaction validation failed' }; // Return an error if Zod validation fails
-    }
-    const parsedTransaction = validationResult.data;
+  // Fetch transaction details
+  const transaction = await provider.getTransaction(transactionHash);
 
-    // Create an ERC-20 interface to decode logs
-    const erc20Interface = new ethers.Interface([
-      'event Transfer(address indexed from, address indexed to, uint256 value)',
-    ]);
+  // Validate transaction using Zod schema
+  const validationResult = transactionSchema.safeParse(transaction);
+  if (!validationResult.success) {
+    throw new Error('Transaction validation failed');
+  }
+  const parsedTransaction = validationResult.data;
 
-    // Fetch transaction receipt (for logs)
-    const receipt = await provider.getTransactionReceipt(transactionHash);
-    if (!receipt) {
-      throw new Error(`Transaction receipt not found for ${transactionHash}`);
-    }
+  // Fetch transaction receipt (for logs)
+  const receipt = await provider.getTransactionReceipt(transactionHash);
+  if (!receipt) {
+    throw new Error(`Transaction receipt not found for ${transactionHash}`);
+  }
 
-    // Decode token transfer details from logs
-    let tokenDetails: {
-      tokenAddress: string | null;
-      from: string;
-      to: string;
-      amount: string;
-    } | null = null;
-    for (const log of receipt.logs) {
-      const decodedLog = decodeERC20TransferLog(log, erc20Interface);
-      if (decodedLog) {
-        const tokenAddress = log.address; // Token contract address that emitted the event
-        const from = decodedLog.from;
-        const to = decodedLog.to;
+  // Decode ERC-20 token transfer from logs
+  const tokenDetails = await decodeTokenTransfer(receipt.logs, provider);
 
-        // Create a contract instance to fetch the decimals dynamically
-        const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, provider);
-        let decimals = 18; // Default to 18 decimals
+  // Fetch ENS name, if available
+  const ensName = await fetchENSName(parsedTransaction.to, provider);
 
-        try {
-          decimals = await tokenContract.decimals(); // Fetch decimals dynamically
-        } catch (err) {
-          console.error(`Failed to fetch decimals for token: ${tokenAddress}`, err);
-        }
-        const amount = ethers.formatUnits(decodedLog.value, decimals);
+  // Fetch block timestamp
+  const timeStamp = await fetchBlockTimestamp(parsedTransaction.blockNumber, provider);
 
-        tokenDetails = {
-          tokenAddress,
-          from,
-          to,
-          amount,
-        };
-        break; // Stop after the first token transfer, if relevant
-      }
-    }
-
-    // Extract ENS name (if available)
-    let ensName = '';
-    try {
-      ensName = (await provider.lookupAddress(parsedTransaction.to)) ?? '';
-    } catch {
-      ensName = ''; // Set ENS name to empty if lookup fails
-    }
-
-    // Fetch the block to get the timestamp
-    const block = parsedTransaction.blockNumber
-      ? await provider.getBlock(parsedTransaction.blockNumber)
-      : null;
-    const timeStamp = block ? new Date(block.timestamp * 1000).toISOString() : '';
-    if (parsedTransaction.value.toString() !== '0') {
-      const ethAmount = ethers.formatEther(parsedTransaction.value);
-      tokenDetails = {
-        tokenAddress: null, // temp set to weth
-        from: parsedTransaction.from,
-        to: parsedTransaction.to ?? '', // "to" can be null for contract creation
-        amount: ethAmount,
-      };
-    }
-
-    // Return the structured transaction data
+  // If the transaction involves ETH, format its value
+  if (parsedTransaction.value.toString() !== '0') {
+    const ethAmount = ethers.formatEther(parsedTransaction.value);
     return {
       transactionHash,
-      to: tokenDetails?.to ?? '',
-      from: tokenDetails?.from ?? '',
+      to: parsedTransaction.to ?? '',
+      from: parsedTransaction.from,
       timeStamp,
       blockNumber: parsedTransaction.blockNumber ?? -1,
       ensName,
-      tokenAmount: tokenDetails?.amount ?? '',
-      tokenContractAddress: tokenDetails?.tokenAddress ?? null,
+      tokenAmount: ethAmount,
+      tokenContractAddress: null, // No token contract address for ETH
     };
-  } catch (error) {
-    console.log(error);
-    if (error instanceof z.ZodError) {
-      throw { error: 'Validation Error', message: error };
-    } else {
-      throw { error: `Error fetching details for transaction: ${transactionHash}`, message: error };
+  }
+
+  // Return token transfer details if found, otherwise return empty details
+  return {
+    transactionHash,
+    to: tokenDetails?.to ?? '',
+    from: tokenDetails?.from ?? '',
+    timeStamp,
+    blockNumber: parsedTransaction.blockNumber ?? -1,
+    ensName,
+    tokenAmount: tokenDetails?.amount ?? '',
+    tokenContractAddress: tokenDetails?.tokenAddress ?? null,
+  };
+};
+
+// Helper functions
+
+const decodeTokenTransfer = async (logs: readonly ethers.Log[], provider: ethers.Provider) => {
+  const erc20Interface = new ethers.Interface([
+    'event Transfer(address indexed from, address indexed to, uint256 value)',
+  ]);
+
+  for (const log of logs) {
+    const decodedLog = decodeERC20TransferLog(log, erc20Interface);
+    if (decodedLog) {
+      const tokenAddress = log.address;
+
+      // Fetch token decimals
+      const decimals = await fetchTokenDecimals(tokenAddress, provider);
+
+      return {
+        tokenAddress,
+        from: decodedLog.from,
+        to: decodedLog.to,
+        amount: ethers.formatUnits(decodedLog.value, decimals),
+      };
     }
   }
+  return null;
 };
+
+const fetchTokenDecimals = async (tokenAddress: string, provider: ethers.Provider) => {
+  try {
+    const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, provider);
+    return await tokenContract.decimals();
+  } catch (err) {
+    console.error(`Failed to fetch decimals for token: ${tokenAddress}`, err);
+    return 18; // Default to 18 decimals
+  }
+};
+
+const fetchENSName = async (address: string | null, provider: ethers.Provider) => {
+  if (!address) return '';
+  try {
+    return await provider.lookupAddress(address) ?? '';
+  } catch {
+    return '';
+  }
+};
+
+const fetchBlockTimestamp = async (blockNumber: number | null, provider: ethers.Provider) => {
+  if (!blockNumber) return '';
+  try {
+    const block = await provider.getBlock(blockNumber);
+    return block ? new Date(block.timestamp * 1000).toISOString() : '';
+  } catch (error) {
+    console.error(`Failed to fetch block for block number: ${blockNumber}`, error);
+    return '';
+  }
+};
+
 
 // Fetch transaction details and validate with Zod
 const decodeERC20TransferLog = (log: ethers.Log, iface: ethers.Interface) => {

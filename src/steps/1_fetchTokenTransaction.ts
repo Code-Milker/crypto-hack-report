@@ -36,8 +36,9 @@ export async function fetchOrCacheEvents(
 
   // Check if events are cached
   const cachedEvents = await getCachedEvents(tokenContractAddress, startBlock, endBlock);
-
+  console.log('asdfasfasdfasdfasfsadf', cachedEvents)
   if (cachedEvents) {
+
     return cachedEvents;
   } else {
     console.log('No cache entry found. Fetching from the blockchain...');
@@ -141,15 +142,15 @@ const recursiveFetchTransactions = async (
 // );
 
 // Start the recursion process
-const generateAttackReport = async (
+export const generateAttackReport = async (
   rootTransaction: string,
   provider: ethers.JsonRpcProvider,
   chainInfo: ChainInfo,
 ) => {
-  const depth = 4; // Recursion depth
-  const limit = 20; // Recursion depth
+  const depth = 5; // Recursion depth
+  const limit = 1; // Recursion depth
   const rootTransactionDetails = await fetchTransactionDetails(rootTransaction, provider);
-  console.log({ rootTransactionDetails });
+  console.log(rootTransactionDetails)
   let nextTransactions;
   if (rootTransactionDetails.tokenContractAddress === null) {
     nextTransactions = await recursiveFetchEthTransactions(
@@ -161,7 +162,6 @@ const generateAttackReport = async (
       chainInfo,
     );
 
-    console.log('eth transaction: ', JSON.stringify(nextTransactions, null, 2));
   } else {
     nextTransactions = await recursiveFetchTransactions(
       provider,
