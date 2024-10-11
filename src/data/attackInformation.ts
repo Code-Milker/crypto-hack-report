@@ -1,20 +1,11 @@
 import { ATTACKED_WALLET_1, ATTACKED_WALLET_2, ATTACKED_WALLET_3, chainInfoMap } from '../info';
-import { ChainId, ChainInfo } from '../types';
-import { deleteDb, writeStepData } from '../dbCalls/db';
+import { AttackedInformation, ChainId, ChainInfo } from '../types';
+import { deleteDb, fetchStepData, writeStepData } from '../dbCalls/db';
 
-// Enum for chain IDs
-
-// Create a Map where ChainId enum is the key, and ChainInfo is the value
-
-// Example usage: Retrieve chain info by ChainId
-export interface AttackedInformation {
-  address: string;
-  chains: {
-    chainInfo: ChainInfo;
-    chainId: ChainId;
-    attackRootTransactionHashes: string[];
-  }[];
-}
+/**
+ * Array of attacked wallet information. This includes wallet addresses and their associated chains with attack transaction hashes.
+ * @type {AttackedInformation[]}
+ */
 const attackInformation: AttackedInformation[] = [
   {
     address: ATTACKED_WALLET_1,
@@ -35,6 +26,7 @@ const attackInformation: AttackedInformation[] = [
         chainInfo: chainInfoMap.get(ChainId.Fantom) as ChainInfo,
         attackRootTransactionHashes: [
           '0xcee4da0e7bdbb3112b2cd249b459d92c1afc23047db545c33ee60532773736d9',
+          '0xc801e29d9cbc29865a67a134a87cd37e82059be7389e5bcbc29c25ac1f1eab16',
           '0xc9e8519f3f2e4a4bfa847157a6a77fab7c649a6d586734694ebfa06878f6f2d3',
           '0xbf7d6a7c62dbbe381c6a11c8ead23c0d7c3d3b2e22e8320559e69f08ada05604',
           '0xd48776312e5b60fb9318c439d406b5ea32292aa3fa2cf850f89e0ba05b884eca',
@@ -94,8 +86,15 @@ const attackInformation: AttackedInformation[] = [
     ],
   },
 ];
-export const step0 = async () => {
+
+/**
+ * Writes the transaction hashes and related chain information to the database.
+ * Deletes the existing database for the step and writes the new attack information.
+ * 
+ * @returns {Promise<void>} A promise that resolves when the data has been written to the DB.
+ */
+export const generateRootAttackInformation = async (): Promise<AttackedInformation[]> => {
   await deleteDb(0);
-  const res = await writeStepData(0, attackInformation);
-  return res;
+  await writeStepData(0, attackInformation);
+  return await fetchStepData(0)
 };

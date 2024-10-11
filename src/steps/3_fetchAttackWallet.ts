@@ -1,4 +1,4 @@
-import { WalletType, KnownWallets, WalletInformation, KnownWalletsMap } from '../info';
+import { KnownWallets, WalletInformation, KnownWalletsMap } from '../info';
 import { fetchStepData, writeStepDataWithTransactionHashIndex } from '../dbCall/db';
 import { TransactionContextPath } from '../types';
 // Main function to process the transaction
@@ -17,8 +17,8 @@ async function fetchAttackWalletsAndPath(
     const wallets: Set<string> = new Set();
     const path: string[] = [];
     a.transactionContextPath.forEach((p, index) => {
-      wallets.add(p.from);
-      wallets.add(p.to);
+      wallets.add(p.from.address);
+      wallets.add(p.to.address);
       path.push(p.transactionHash);
     });
     return {

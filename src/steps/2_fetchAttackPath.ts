@@ -1,6 +1,6 @@
 import { ChainInfo, TransactionContext, TransactionContextPath, } from '../types';
 import { fetchStepData, writeStepDataWithTransactionHashIndex } from './db';
-import { AttackedInformation } from './0_attackInformation';
+import { AttackedInformation } from '../data/attackInformation';
 import { getLinkToTransactions } from '../api/etherscan';
 
 

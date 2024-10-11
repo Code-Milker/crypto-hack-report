@@ -27,7 +27,6 @@ export const dbInit = async (step: number) => {
  */
 export const fetchStepData = async (step: number) => {
   const stepFileDb = getStepFileDb(step);
-  console.log(stepFileDb)
   const fileExists = await checkFileExists(stepFileDb);
 
   if (!fileExists) {

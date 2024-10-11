@@ -15,10 +15,14 @@ export const transactionSchema = z.object({
 export interface TransactionPathFromAttack extends TransactionContext {
   nextTransactions: TransactionPathFromAttack[] | TokenTransactionContext[];
 }
-
+export type AddressType = 'EOA' | 'contract'
+export interface AddressContext {
+  address: string,
+  type: AddressType
+}
 export interface TransactionContext {
-  to: string;
-  from: string;
+  to: AddressContext;
+  from: AddressContext;
   timeStamp: string;
   blockNumber: number;
   ensName?: string; // Optional if ENS is not available
@@ -68,4 +72,14 @@ export interface DecodedParam {
   fullName: string;
   type: string;
   value: any;
+}
+
+// Example usage: Retrieve chain info by ChainId
+export interface AttackedInformation {
+  address: string;
+  chains: {
+    chainInfo: ChainInfo;
+    chainId: ChainId;
+    attackRootTransactionHashes: string[];
+  }[];
 }

@@ -5,16 +5,17 @@ import {
   delay
 } from '../utils';
 import { fetchContractAbi } from '../api/etherscan';
-import { decodeLog, decodeMethod, fetchTransactionDetails, getContractBehindProxy } from '../api/rpc';
+import { decodeLog, decodeMethod, fetchTransactionDetails, getContractBehindProxy, getAddressType } from '../api/rpc';
+import { cacheTransactionInformation, getCachedTransactionInformation } from '../dbCalls/transaction';
 export const fetchMethodInformationByTransactionHash = async (transactionHash: string, provider: ethers.JsonRpcProvider, chain: ChainInfo) => {
   const rootTransactionDetails: TransactionContext = await fetchTransactionDetails(transactionHash, provider);
-  const rootAddress = await getContractBehindProxy(rootTransactionDetails.to, provider)
+  const rootAddress = await getContractBehindProxy(rootTransactionDetails.to.address, provider)
   let decodedMethod;
   if (rootAddress) {
     const contractAbi = await fetchContractAbi(rootAddress, chain)
     decodedMethod = await decodeMethod(transactionHash, contractAbi, provider)
   } else {
-    const contractAbi = await fetchContractAbi(rootTransactionDetails.to, chain)
+    const contractAbi = await fetchContractAbi(rootTransactionDetails.to.address, chain)
     decodedMethod = await decodeMethod(transactionHash, contractAbi, provider)
   }
   return decodedMethod
@@ -22,7 +23,6 @@ export const fetchMethodInformationByTransactionHash = async (transactionHash: s
 
 export const fetchEventInformationByTransactionHash = async (transactionHash: string, provider: ethers.JsonRpcProvider, chain: ChainInfo) => {
   const rootTransactionDetails: TransactionContext = await fetchTransactionDetails(transactionHash, provider);
-
   const decodedLogs = []
   const failedDecodedlogs = []
   for (const l of rootTransactionDetails.receipt.logs) {
@@ -49,4 +49,21 @@ export const fetchEventInformationByTransactionHash = async (transactionHash: st
   return { decodedLogs, failedDecodedlogs }
 }
 
+export const fetchTransactionInformationFromAttackInformation = async (params: { transactionHash: string, }, provider: ethers.JsonRpcProvider, chain: ChainInfo) => {
+  const cachedTransactionInformation = await getCachedTransactionInformation(params.transactionHash, chain.chainId)
+  if (cachedTransactionInformation !== null) {
+    return cachedTransactionInformation
+  }
 
+  const rootTransactionDetails: TransactionContext = await fetchTransactionDetails(params.transactionHash, provider);
+  const events = await fetchEventInformationByTransactionHash(params.transactionHash, provider, chain)
+  let method;
+  if (rootTransactionDetails.to.type === 'contract') {
+    method = await fetchMethodInformationByTransactionHash(params.transactionHash, provider, chain)
+  } else {
+    method = null
+  }
+  cacheTransactionInformation(params.transactionHash, chain.chainId, { events, method })
+  return { events, method }
+
+}

@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { DecodedParam, TransactionContext, transactionSchema } from "../types";
+import { AddressType, DecodedParam, TransactionContext, transactionSchema } from "../types";
 import { fetchENSName, fetchBlockTimestamp } from "../utils";
 
 /**
@@ -177,7 +177,7 @@ export async function decodeLog(log: ethers.Log, abi: string): Promise<DecodedLo
  */
 export const fetchTransactionDetails = async (
   transactionHash: string,
-  provider: ethers.Provider,
+  provider: ethers.JsonRpcProvider,
 ): Promise<TransactionContext> => {
   // Fetch transaction details
   const transaction = await provider.getTransaction(transactionHash);
@@ -203,10 +203,12 @@ export const fetchTransactionDetails = async (
 
   // If the transaction involves ETH, format its value
   const ethAmount = ethers.formatEther(parsedTransaction.value);
+  const toType = await getAddressType(parsedTransaction.to, provider)
+  const fromType = await getAddressType(parsedTransaction.from, provider)
   const res: TransactionContext = {
     transactionHash,
-    to: parsedTransaction.to ?? '',
-    from: parsedTransaction.from,
+    to: { type: toType, address: parsedTransaction.to },
+    from: { type: fromType, address: parsedTransaction.from },
     timeStamp,
     blockNumber: parsedTransaction.blockNumber ?? -1,
     ensName,
@@ -251,4 +253,9 @@ export async function getContractBehindProxy(contractAddress: string, provider: 
     console.error('Error detecting proxy:', err);
     return null;
   }
+}
+
+export async function getAddressType(address: string, provider: ethers.JsonRpcProvider): Promise<AddressType> {
+  const code = await provider.getCode(address);
+  return code === '0x' ? 'EOA' : 'contract'  // '0x' means it's a regular wallet, anything else indicates a contract
 }
