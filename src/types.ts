@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import ethers from 'ethers'
 export const transactionSchema = z.object({
   hash: z.string().length(66, 'Invalid transaction hash'), // Transaction hash
   to: z.string(), // "to" can be null for contract creation transactions
@@ -23,6 +24,7 @@ export interface TransactionContext {
   ensName?: string; // Optional if ENS is not available
   amount: string;
   transactionHash: string;
+  receipt: ethers.TransactionReceipt
 }
 export interface TokenTransactionContext extends TransactionContext {
   tokenContractAddress: string;
@@ -47,6 +49,7 @@ export enum ChainId {
 
 // Define the ChainInfo type
 export type ChainInfo = {
+  chainId: ChainId
   name: string;
   rpcUrl: string;
   nativeCurrency: {
@@ -59,3 +62,10 @@ export type ChainInfo = {
   apiKey: string;
   attackRootTransactionHashes?: string[]
 };
+
+export interface DecodedParam {
+  name: string;
+  fullName: string;
+  type: string;
+  value: any;
+}

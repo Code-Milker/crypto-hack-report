@@ -11,7 +11,7 @@ import {
   getCachedEvents,
   getStepStatus,
   writeStepDataWithTransactionHashIndex,
-} from './db';
+} from '../dbCalls/db';
 import { AttackedInformation } from './0_attackInformation';
 import { recursiveFetchEthTransactions } from './test';
 // Define the ERC20 ABI with the decimals function
@@ -35,7 +35,6 @@ export async function fetchOrCacheEvents(
 
   // Check if events are cached
   const cachedEvents = await getCachedEvents(tokenContractAddress, startBlock, endBlock);
-  console.log('asdfasfasdfasdfasfsadf', cachedEvents)
   if (cachedEvents) {
 
     return cachedEvents;
@@ -148,6 +147,7 @@ export const generateAttackReport = async (
   const depth = 5; // Recursion depth
   const limit = 5; // Recursion depth
   const rootTransactionDetails: TokenTransactionContext | TransactionContext = await fetchTransactionDetails(rootTransaction, provider);
+  // fetchTransactionLogs
   let nextTransactions;
   if ('tokenContractAddress' in rootTransactionDetails) {
     console.log('erc-20 token fetch: ')

@@ -6,43 +6,8 @@ import {
   getBlockOneWeekAhead,
 } from '../utils';
 import { ChainInfo, TransactionContext, TransactionPathFromAttack } from '../types';
+import { fetchOutgoingEthTransactionsViaEtherscan } from '../api/etherscan';
 
-// Fetch outgoing ETH transactions via Etherscan
-const fetchOutgoingEthTransactionsViaEtherscan = async (
-  provider: ethers.Provider,
-  account: string,
-  fromTransactionHash: string, // Transaction hash to start from
-  chainInfo: ChainInfo,
-): Promise<TransactionContext[]> => {
-  // Get the block for the provided transaction hash
-  //
-  const startBlock = await fetchBlockInfoFromTransaction(fromTransactionHash, provider);
-  const endBlock = getBlockOneWeekAhead(startBlock.number);
-  const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${account}&startblock=${startBlock.number}&endblock=${endBlock}&sort=asc&apikey=${chainInfo.apiKey}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  // Filter for outgoing ETH transactions
-  const outgoingTransactions = data.result.filter(
-    (tx: any) => tx.from.toLowerCase() === account.toLowerCase() && tx.value > 0,
-  );
-
-  // Map to TransactionPathWithContext format
-  const transactionDetails: TransactionContext[] = outgoingTransactions.map((tx: any) => {
-    const ethAmount = ethers.formatEther(tx.value);
-    const transaction: TransactionContext = {
-      transactionHash: tx.hash,
-      from: tx.from,
-      to: tx.to,
-      amount: ethAmount,
-      timeStamp: new Date(tx.timeStamp * 1000).toISOString(),
-      blockNumber: tx.blockNumber,
-      ensName: '', // Optionally add ENS lookup logic here
-    }
-    return transaction;
-  });
-
-  return transactionDetails;
-};
 
 // Example integration with recursive function
 export const recursiveFetchEthTransactions = async (

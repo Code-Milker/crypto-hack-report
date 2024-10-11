@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import {
+  ChainInfo,
   TokenTransactionContext,
   TransactionContext
 } from './types';
@@ -54,6 +55,7 @@ export const fetchTransactionDetails = async (
       blockNumber: parsedTransaction.blockNumber ?? -1,
       ensName,
       amount: ethAmount,
+      receipt: receipt
     };
     return res;
   }
@@ -61,7 +63,7 @@ export const fetchTransactionDetails = async (
   const tokenDetails = await decodeTokenTransfer(receipt.logs, provider);
 
   // Return token transfer details if found, otherwise return empty details
-  return {
+  const res: TokenTransactionContext = {
     transactionHash,
     to: tokenDetails?.to ?? '',
     from: tokenDetails?.from ?? '',
@@ -70,7 +72,9 @@ export const fetchTransactionDetails = async (
     ensName,
     amount: tokenDetails?.amount ?? '',
     tokenContractAddress: tokenDetails?.tokenAddress ?? null,
+    receipt: receipt
   };
+  return res
 };
 
 // Helper functions
@@ -85,7 +89,6 @@ const decodeTokenTransfer = async (logs: readonly ethers.Log[], provider: ethers
   const erc20Interface = new ethers.Interface([
     'event Transfer(address indexed from, address indexed to, uint256 value)',
   ]);
-  console.log(logs)
   for (const log of logs) {
     const decodedLog = decodeERC20TransferLog(log, erc20Interface);
     if (decodedLog) {
@@ -123,7 +126,7 @@ const fetchTokenDecimals = async (tokenAddress: string, provider: ethers.Provide
   }
 };
 
-const fetchENSName = async (address: string | null, provider: ethers.Provider) => {
+export const fetchENSName = async (address: string | null, provider: ethers.Provider) => {
   if (!address) return '';
   try {
     return await provider.lookupAddress(address) ?? '';
@@ -132,7 +135,7 @@ const fetchENSName = async (address: string | null, provider: ethers.Provider) =
   }
 };
 
-const fetchBlockTimestamp = async (blockNumber: number | null, provider: ethers.Provider) => {
+export const fetchBlockTimestamp = async (blockNumber: number | null, provider: ethers.Provider) => {
   if (!blockNumber) return '';
   try {
     const block = await provider.getBlock(blockNumber);
@@ -154,55 +157,6 @@ const decodeERC20TransferLog = (log: ethers.Log, iface: ethers.Interface) => {
   }
 };
 
-// export const fetchTransactionPathDetails = async (
-//   transactionPath: TransactionPathFromAttack,
-//   provider: ethers.Provider,
-// ): Promise<any> => {
-//   // Fetch details for the current transaction
-//   const currentTransactionDetails = await fetchTransactionDetails(
-//     transactionPath.transactionHash,
-//     provider,
-//   );
-//
-//   // Recursively fetch the next transactions
-//   const nextTransactionDetails = [];
-//   for (const nextTransaction of transactionPath.nextTransactions) {
-//     const nextDetail = await fetchTransactionPathDetails(nextTransaction, provider);
-//     if (nextDetail) {
-//       nextTransactionDetails.push(nextDetail);
-//     }
-//   }
-//
-//   return {
-//     ...currentTransactionDetails,
-//     nextTransactions: nextTransactionDetails,
-//   };
-// };
-
-
-// Recursive function to convert each transaction path into a nested structure
-// export const convertToTransactionPath = (hashes: string[]): TransactionPathFromAttack => {
-//   if (hashes.length === 0) {
-//     return { transactionHash: '', nextTransactions: [] };
-//   }
-//
-//   const [first, ...rest] = hashes;
-//   return {
-//     transactionHash: first,
-//     nextTransactions: rest.length ? [convertToTransactionPath(rest)] : [],
-//   };
-// };
-
-// Function to build the entire transaction path with root and multiple branches
-// export const buildTransactionPath = (attack: {
-//   rootTransaction: string;
-//   transactionsPaths: string[][];
-// }): TransactionPathFromAttack => {
-//   return {
-//     transactionHash: attack.rootTransaction,
-//     nextTransactions: attack.transactionsPaths.map((path) => convertToTransactionPath(path)),
-//   };
-// };
 
 export const fetchBlockInfoFromTransaction = async (
   transactionHash: string,
@@ -236,4 +190,14 @@ export function getBlockOneWeekAhead(startBlock: number) {
   // Calculate the block number one week ahead
   const endBlock = startBlock + blocksInWeek;
   return endBlock;
+}
+
+export async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function stringifyBigInt(obj: any) {
+  return JSON.stringify(obj, (key, value) =>
+    typeof value === 'bigint' ? value.toString() : value, 2
+  );
 }

@@ -1,6 +1,6 @@
 import { ATTACKED_WALLET_1, ATTACKED_WALLET_2, ATTACKED_WALLET_3, chainInfoMap } from '../info';
 import { ChainId, ChainInfo } from '../types';
-import { deleteDb, writeStepData } from './db';
+import { deleteDb, writeStepData } from '../dbCalls/db';
 
 // Enum for chain IDs
 

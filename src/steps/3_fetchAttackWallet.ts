@@ -1,5 +1,5 @@
 import { WalletType, KnownWallets, WalletInformation, KnownWalletsMap } from '../info';
-import { fetchStepData, writeStepDataWithTransactionHashIndex } from './db';
+import { fetchStepData, writeStepDataWithTransactionHashIndex } from '../dbCall/db';
 import { TransactionContextPath } from '../types';
 // Main function to process the transaction
 async function fetchAttackWalletsAndPath(
