@@ -1,6 +1,6 @@
 import { ethers, InterfaceAbi } from 'ethers';
 import { ChainInfo, TransactionContext, TransactionContextPath } from '../types';
-import { fetchBlockInfoFromTransaction, getBlockDaysAhead } from '../utils';
+import { delay, fetchBlockInfoFromTransaction, getBlockDaysAhead } from '../utils';
 import { cacheAbi, getCachedAbi } from '../dbCalls/abi';
 
 export async function fetchContractAbi(
@@ -68,6 +68,7 @@ export async function fetchTransactionForAddress(
   endBlock: number,
   chainInfo: ChainInfo,
 ): Promise<TransactionDetails[]> {
+  await delay(300);
   const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=${endBlock}&sort=asc&offset=500&apikey=${chainInfo.apiKey}`;
   const response = await fetch(url);
   const data = await response.json();

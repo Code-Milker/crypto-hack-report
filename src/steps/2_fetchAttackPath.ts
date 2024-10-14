@@ -46,9 +46,7 @@ const followTransactionFlow = (
 };
 
 // Main function to process the transaction
-export async function processTransaction(
-  data: TransactionContextPath,
-): Promise<
+export async function processTransaction(data: TransactionContextPath): Promise<
   {
     transactionContextPath: TransactionContextPath[];
     tokenSplitOrCombinationHash?: { link: string; manuallyUpdatedTransaction: string };

@@ -69,8 +69,15 @@ export type TransactionNativeType =
   | 'sum'
   | 'split'
   | 'end'
-  | 'root';
-export type TransactionContractType = 'contractCall' | 'end' | 'transfer' | 'method' | 'root';
+  | 'root'
+  | 'unknown';
+export type TransactionContractType =
+  | 'contractCall'
+  | 'end'
+  | 'transfer'
+  | 'method'
+  | 'root'
+  | 'unknown';
 export interface FetchNativeTransaction {
   transactionType: TransactionNativeType[];
   transactionContext: TransactionContext;
@@ -83,39 +90,28 @@ export interface FetchContractTransaction {
 }
 
 export const fetchTransactionInformation = async (
-  params: { transactionHash: string },
+  transactionHash: string,
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
 ): Promise<FetchContractTransaction | FetchNativeTransaction> => {
   const cachedTransactionInformation = await getCachedTransactionInformation(
-    params.transactionHash,
+    transactionHash,
     chain.chainId,
   );
   if (cachedTransactionInformation !== null) {
     return cachedTransactionInformation;
   }
-  const transactionContext: TransactionContext = await fetchTransaction(
-    params.transactionHash,
-    provider,
-  );
+  const transactionContext: TransactionContext = await fetchTransaction(transactionHash, provider);
   let payload: FetchNativeTransaction | FetchContractTransaction = {
     transactionContext,
     transactionType: ['nativeTransfer'],
   };
   if (transactionContext.to.type === 'contract') {
-    const method = await fetchMethodInformationByTransactionHash(
-      params.transactionHash,
-      provider,
-      chain,
-    );
-    const events = await fetchEventInformationByTransactionHash(
-      params.transactionHash,
-      provider,
-      chain,
-    );
+    const method = await fetchMethodInformationByTransactionHash(transactionHash, provider, chain);
+    const events = await fetchEventInformationByTransactionHash(transactionHash, provider, chain);
     payload = { transactionContext, transactionType: ['contractCall'], method, events };
   }
-  cacheTransactionInformation(params.transactionHash, chain.chainId, payload);
+  cacheTransactionInformation(transactionHash, chain.chainId, payload);
   return payload;
 };
 
@@ -165,13 +161,14 @@ function findCombination(
 function splitTransaction(
   transactions: Array<TransactionDetails>,
   targetTransaction: TransactionDetails,
+  variance: number,
 ) {
   const outgoingTxs = transactions.filter((tx) => tx.from === targetTransaction.from); // Outgoing transactions from the address
   const outgoingValue = BigInt(targetTransaction.value);
 
   // Calculate the allowed variance (2%)
-  const lowerBound = outgoingValue - (outgoingValue * BigInt(2)) / BigInt(100);
-  const upperBound = outgoingValue + (outgoingValue * BigInt(2)) / BigInt(100);
+  const lowerBound = outgoingValue - (outgoingValue * BigInt(variance)) / BigInt(100);
+  const upperBound = outgoingValue + (outgoingValue * BigInt(variance)) / BigInt(100);
 
   // Find a split of transactions that sum to the target outgoing value within the variance range
   const result = findSplitCombination(outgoingTxs, lowerBound, upperBound);
@@ -205,23 +202,20 @@ function findSplitCombination(
 
   return null; // No valid split combination found
 }
-
+// looks
 export const fetchTransactionInteractionInformation = async (
-  params: {
-    transactionHash: string;
-    transactionType: TransactionNativeType | TransactionContractType;
-    eventDepth: number;
-    nativeDepth: number;
-    methodDepth: number;
-    path: (FetchContractTransaction | FetchNativeTransaction)[];
-  },
+  transactionHash: string,
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
 ) => {
-  const res = await fetchTransactionInformation(params, provider, chain);
-  const endBlock = getBlockDaysAhead(res.transactionContext.blockNumber, 10);
+  const transactionInformation = await fetchTransactionInformation(
+    transactionHash,
+    provider,
+    chain,
+  );
+  const endBlock = getBlockDaysAhead(transactionInformation.transactionContext.blockNumber, 10);
   const transactionsForAddress = await fetchTransactionForAddress(
-    res.transactionContext.to.address,
+    transactionInformation.transactionContext.to.address,
     endBlock,
     chain,
   );
@@ -229,48 +223,49 @@ export const fetchTransactionInteractionInformation = async (
   const contractTransactions: FetchContractTransaction[] = [];
   for (const t of transactionsForAddress) {
     // sort transactions by event type
-    if (params.transactionHash === t.hash) {
+    if (transactionHash === t.hash) {
       continue;
     }
-    const transactionInformation = await fetchTransactionInformation(
-      { transactionHash: t.hash },
+    const transactionInformationFromToAddress = await fetchTransactionInformation(
+      t.hash,
       provider,
       chain,
     );
-    if (transactionInformation.transactionType[0] === 'nativeTransfer') {
-      const nativeTransaction = transactionInformation as FetchNativeTransaction;
+    if (transactionInformationFromToAddress.transactionType[0] === 'nativeTransfer') {
+      const nativeTransaction = transactionInformationFromToAddress as FetchNativeTransaction;
 
       const possibleDirectTransfer = await isNativeTokenTransferWithinRange(
-        Number(res.transactionContext.formattedValue),
         Number(transactionInformation.transactionContext.formattedValue),
+        Number(transactionInformationFromToAddress.transactionContext.formattedValue),
         200,
         chain,
       );
+      const split = splitTransaction(transactionsForAddress, t, 5);
+      const sum = sumTransactions(transactionsForAddress, t);
+
       if (possibleDirectTransfer) {
         nativeTransactions.push({
           ...nativeTransaction,
           transactionType: [...nativeTransaction.transactionType, 'directTransfer'],
         });
-      }
-      const split = splitTransaction(transactionsForAddress, t);
-      if (split?.length > 0) {
+      } else if (split?.length > 0) {
         nativeTransactions.push({
           ...nativeTransaction,
           transactionType: [...nativeTransaction.transactionType, 'split'],
         });
-      }
-      const sum = sumTransactions(transactionsForAddress, t);
-      if (sum.length) {
+      } else if (sum.length) {
         nativeTransactions.push({
           ...nativeTransaction,
           transactionType: [...nativeTransaction.transactionType, 'sum'],
         });
+      } else {
+        nativeTransactions.push({
+          ...nativeTransaction,
+          transactionType: [...nativeTransaction.transactionType, 'unknown'],
+        });
       }
-    }
-
-    if (transactionInformation.transactionType[0] === 'contractCall') {
-      const contractTransaction = transactionInformation as FetchContractTransaction;
-
+    } else if (transactionInformationFromToAddress.transactionType[0] === 'contractCall') {
+      const contractTransaction = transactionInformationFromToAddress as FetchContractTransaction;
       if (contractTransaction.method.methodName === 'Transfer') {
         contractTransactions.push({
           ...contractTransaction,
@@ -284,44 +279,118 @@ export const fetchTransactionInteractionInformation = async (
       }
     }
   }
-
-  return { nativeTransactions, contractTransactions };
+  return {
+    transactionInformation: transactionInformation,
+    nativeTransactions,
+    contractTransactions,
+  };
 };
-const fetchTransactionInformationPath = async (
-  params: {
-    transactionHash: string;
-    transactionType: TransactionNativeType | TransactionContractType;
-    eventDepth: number;
-    nativeDepth: number;
-    methodDepth: number;
-    path: (FetchContractTransaction | FetchNativeTransaction)[];
-  },
+
+interface TransactionInformationNode {
+  transactionInformation: FetchContractTransaction | FetchNativeTransaction;
+  nativeTransactions: FetchNativeTransaction[];
+  contractTransactions: FetchContractTransaction[];
+  next?: TransactionInformationNode;
+}
+export const fetchTransactionInformationPath = async (
+  transactionHash: string,
+  path: TransactionInformationNode | null,
+  depth: number,
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
-) => {
-  const res = await fetchTransactionInteractionInformation(params, provider, chain);
-
-  for (const t of res.nativeTransactions) {
-    // {
-    //       transactionHash: t.transactionContext.transactionHash,
-    //       transactionType: t.transactionType,
-    //       eventDepth: eventDepth - 1,
-    //       nativeDepth: nativeDepth - 1,
-    //       methodDepth: methodDepth: - 1 }
-    fetchTransactionInformationPath(
-      {
-        path: ['TODO figure out recursive object here'],
-        transactionType: 'directTransfer',
-        transactionHash: t.transactionContext.transactionHash,
-        eventDepth: params.eventDepth - 1,
-        nativeDepth: params.nativeDepth - 1,
-        methodDepth: params.methodDepth - 1,
-      },
-      provider,
-      chain,
-    );
+): Promise<TransactionInformationNode | null> => {
+  console.log(depth)
+  if (depth === 0) {
+    return path;
   }
+  const res = await fetchTransactionInteractionInformation(transactionHash, provider, chain); // determine correct Path to choose here
+  console.log(res.transactionInformation)
+
+  // runs transaction
+  // if native will be direct, split, sum, unknown
+  const transactionType = res.transactionInformation.transactionType[0];
+  if (transactionType === 'nativeTransfer') {
+    // we had a native transfer, lets see what matches we found
+    for (const t of res.nativeTransactions) {
+      const nativeTransactionType = t.transactionType[
+        t.transactionType.length - 1
+      ] as TransactionNativeType;
+      if (nativeTransactionType === 'unknown') {
+        return res;
+      } else if (nativeTransactionType === 'directTransfer') {
+        const next = await fetchTransactionInformationPath(
+          t.transactionContext.transactionHash,
+          path,
+          depth - 1,
+          provider,
+          chain,
+        );
+        return next ? { ...res, next } : res;
+      } else if (nativeTransactionType === 'split') {
+        const next = await fetchTransactionInformationPath(
+          t.transactionContext.transactionHash,
+          path,
+          depth - 1,
+          provider,
+          chain,
+        );
+        return next ? { ...res, next } : res;
+      } else if (nativeTransactionType === 'sum') {
+        const next = await fetchTransactionInformationPath(
+          t.transactionContext.transactionHash,
+          path,
+          depth - 1,
+          provider,
+          chain,
+        );
+        return next ? { ...res, next } : res;
+      }
+    }
+  } else if (transactionType === 'contractCall') {
+    // we had a native transfer, lets see what matches we found
+    for (const t of res.contractTransactions) {
+      const contractTransactionType = t.transactionType[
+        t.transactionType.length - 1
+      ] as TransactionContractType;
+
+      if (contractTransactionType === 'unknown') {
+        return res;
+      } else if (contractTransactionType === 'transfer') {
+        return res; // todo
+      } else if (contractTransactionType === 'method') {
+        return res; // todo
+      }
+    }
+  }
+
+  return res;
 };
+
+// if (res.transactionInformation.transactionType === 'nativeTransfer') {
+// starting here we have a transaction, lets see if we can grab the next correct transaction
+// for (const t of res.nativeTransactions) {
+
+// console.log(t.transactionContext.transactionHash);
+// {
+//       transactionHash: t.transactionContext.transactionHash,
+//       transactionType: t.transactionType,
+//       eventDepth: eventDepth - 1,
+//       nativeDepth: nativeDepth - 1,
+//       methodDepth: methodDepth: - 1 }
+// fetchTransactionInformationPath(
+//   {
+//     path: ['TODO figure out recursive object here'],
+//     transactionType: 'directTransfer',
+//     transactionHash: t.transactionContext.transactionHash,
+//     eventDepth: params.eventDepth - 1,
+//     nativeDepth: params.nativeDepth - 1,
+//     methodDepth: params.methodDepth - 1,
+//   },
+//   provider,
+//   chain,
+// );
+// }
+// };
 
 // Usage
 
@@ -331,3 +400,4 @@ const fetchTransactionInformationPath = async (
 // }
 // if (rootTransactionDetails.to.type === 'contract') { //
 //
+//}
