@@ -165,7 +165,6 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
   [
     ChainId.Arbitrum, // Arbitrum One Mainnet
     {
-
       chainId: ChainId.Arbitrum,
       name: 'Arbitrum One',
       rpcUrl: 'https://arbitrum-mainnet.infura.io/v3/' + infuraKey,
@@ -182,7 +181,6 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
   [
     ChainId.Polygon, // Polygon Mainnet
     {
-
       chainId: ChainId.Polygon,
       name: 'Polygon Mainnet',
 
@@ -200,7 +198,6 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
   [
     ChainId.Gnosis, // Gnosis Chain (formerly xDai)
     {
-
       chainId: ChainId.Gnosis,
       name: 'Gnosis Chain (formerly xDai)',
       rpcUrl: 'https://rpc.gnosischain.com',
@@ -217,7 +214,6 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
   [
     ChainId.Fantom, // Fantom Opera Mainnet
     {
-
       chainId: ChainId.Fantom,
       name: 'Fantom Opera',
       rpcUrl: 'https://rpc.ftm.tools',
@@ -234,7 +230,6 @@ export const chainInfoMap: Map<ChainId, ChainInfo> = new Map([
   [
     ChainId.Optimism, // Optimism Mainnet
     {
-
       chainId: ChainId.Optimism,
       name: 'Optimism',
       rpcUrl: 'https://mainnet.optimism.io',

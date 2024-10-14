@@ -90,11 +90,11 @@ const attackInformation: AttackedInformation[] = [
 /**
  * Writes the transaction hashes and related chain information to the database.
  * Deletes the existing database for the step and writes the new attack information.
- * 
+ *
  * @returns {Promise<void>} A promise that resolves when the data has been written to the DB.
  */
 export const generateRootAttackInformation = async (): Promise<AttackedInformation[]> => {
   await deleteDb(0);
   await writeStepData(0, attackInformation);
-  return await fetchStepData(0)
+  return await fetchStepData(0);
 };

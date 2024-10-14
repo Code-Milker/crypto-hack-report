@@ -74,23 +74,21 @@ export const step3 = async () => {
   const transactions = await Promise.all(
     Object.keys(data).map(async (key) => {
       if (data[key].length) {
-
         const addressesInvolved = await fetchAttackWalletsAndPath(data[key]);
         const addressesIdentity = lookUpKnownWallets(addressesInvolved);
         return {
           [key]: addressesIdentity,
-        }
+        };
       }
-      return { [key]: [] }
+      return { [key]: [] };
     }),
   );
-  let transactionsObj = {}
-  transactions.forEach(t => {
-    console.log(t)
-    transactionsObj = { ...transactionsObj, ...t }
-
-  })
-  console.log(transactionsObj)
+  let transactionsObj = {};
+  transactions.forEach((t) => {
+    console.log(t);
+    transactionsObj = { ...transactionsObj, ...t };
+  });
+  console.log(transactionsObj);
   for (const [key, value] of Object.entries(transactionsObj)) {
     // console.log({ key, value })
     await writeStepDataWithTransactionHashIndex(3, value, key);

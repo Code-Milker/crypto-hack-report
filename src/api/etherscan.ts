@@ -1,22 +1,25 @@
-import { ethers, InterfaceAbi } from "ethers";
-import { ChainInfo, TransactionContext, TransactionContextPath } from "../types";
-import { fetchBlockInfoFromTransaction, getBlockDaysAhead } from "../utils";
-import { cacheAbi, getCachedAbi } from "../dbCalls/abi";
+import { ethers, InterfaceAbi } from 'ethers';
+import { ChainInfo, TransactionContext, TransactionContextPath } from '../types';
+import { fetchBlockInfoFromTransaction, getBlockDaysAhead } from '../utils';
+import { cacheAbi, getCachedAbi } from '../dbCalls/abi';
 
-export async function fetchContractAbi(contractAddress: string, chainInfo: ChainInfo): Promise<string> {
+export async function fetchContractAbi(
+  contractAddress: string,
+  chainInfo: ChainInfo,
+): Promise<string> {
   // First, check the cache with both the contractAddress and chainId
   const cachedAbi = await getCachedAbi(contractAddress, chainInfo.chainId);
   if (cachedAbi) {
-    console.log(`Returning cached ABI for contract ${contractAddress} on chain ${chainInfo.chainId}`);
+    console.log(
+      `Returning cached ABI for contract ${contractAddress} on chain ${chainInfo.chainId}`,
+    );
     return cachedAbi;
   }
 
   // If not in the cache, fetch from the block explorer API
-  const url = `${chainInfo.blockExplorerApiUrl}?module=contract&action=getabi&address=${contractAddress}&apikey=${chainInfo.apiKey}`
-  console.log(url)
-  const response = await fetch(
-    url
-  );
+  const url = `${chainInfo.blockExplorerApiUrl}?module=contract&action=getabi&address=${contractAddress}&apikey=${chainInfo.apiKey}`;
+  console.log(url);
+  const response = await fetch(url);
   const data = await response.json();
 
   if (data.result && data.status === '1') {
@@ -24,10 +27,9 @@ export async function fetchContractAbi(contractAddress: string, chainInfo: Chain
     await cacheAbi(contractAddress, chainInfo.chainId, data.result);
     return data.result;
   } else {
-    cacheAbi(contractAddress, chainInfo.chainId, "{}")
-    throw Error('abi cannot be found for: ' + contractAddress)
+    cacheAbi(contractAddress, chainInfo.chainId, '{}');
+    throw Error('abi cannot be found for: ' + contractAddress);
   }
-
 }
 
 export function getLinkToTransactions(transactionContext: TransactionContextPath): string {
@@ -61,13 +63,17 @@ export interface TransactionDetails {
   confirmations: string;
   isError: string;
 }
-export async function fetchTransactionForAddress(address: string, endBlock: number, chainInfo: ChainInfo): Promise<TransactionDetails[]> {
+export async function fetchTransactionForAddress(
+  address: string,
+  endBlock: number,
+  chainInfo: ChainInfo,
+): Promise<TransactionDetails[]> {
   const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=${endBlock}&sort=asc&offset=500&apikey=${chainInfo.apiKey}`;
   const response = await fetch(url);
   const data = await response.json();
   if (data.status !== '1') {
     throw new Error('Error fetching transactions from Etherscan: ' + data.message);
   }
-  const nativeTransactions = data.result
+  const nativeTransactions = data.result;
   return nativeTransactions;
 }

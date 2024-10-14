@@ -1,16 +1,11 @@
 import { ethers } from 'ethers';
-import {
-  ChainInfo,
-  TransactionContext
-} from './types';
+import { ChainInfo, TransactionContext } from './types';
 import 'dotenv/config'; // Loads .env variables into process.env
 import { transactionSchema } from './types';
 import { z } from 'zod';
 export const createProvider = (rpcUrl: string): ethers.JsonRpcProvider => {
   return new ethers.JsonRpcProvider(rpcUrl);
 };
-
-
 
 // ERC-20 ABI to fetch decimals
 // const erc20Abi = ['function decimals() view returns (uint8)'];
@@ -128,13 +123,16 @@ type TokenTransferDetails = {
 export const fetchENSName = async (address: string | null, provider: ethers.Provider) => {
   if (!address) return '';
   try {
-    return await provider.lookupAddress(address) ?? '';
+    return (await provider.lookupAddress(address)) ?? '';
   } catch {
     return '';
   }
 };
 
-export const fetchBlockTimestamp = async (blockNumber: number | null, provider: ethers.Provider) => {
+export const fetchBlockTimestamp = async (
+  blockNumber: number | null,
+  provider: ethers.Provider,
+) => {
   if (!blockNumber) return '';
   try {
     const block = await provider.getBlock(blockNumber);
@@ -144,7 +142,6 @@ export const fetchBlockTimestamp = async (blockNumber: number | null, provider: 
     return '';
   }
 };
-
 
 // Fetch transaction details and validate with Zod
 // const decodeERC20TransferLog = (log: ethers.Log, iface: ethers.Interface) => {
@@ -187,11 +184,13 @@ export function getBlockDaysAhead(startBlock: number, days: number) {
 }
 
 export async function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function stringifyBigInt(obj: any) {
-  return JSON.stringify(obj, (key, value) =>
-    typeof value === 'bigint' ? value.toString() : value, 2
+  return JSON.stringify(
+    obj,
+    (key, value) => (typeof value === 'bigint' ? value.toString() : value),
+    2,
   );
 }

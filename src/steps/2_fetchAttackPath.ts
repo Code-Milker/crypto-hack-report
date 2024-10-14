@@ -1,19 +1,20 @@
-import { ChainInfo, TransactionContext, TransactionContextPath, } from '../types';
+import { ChainInfo, TransactionContext, TransactionContextPath } from '../types';
 import { fetchStepData, writeStepDataWithTransactionHashIndex } from './db';
 import { AttackedInformation } from '../data/attackInformation';
 import { getLinkToTransactions } from '../api/etherscan';
-
 
 const followTransactionFlow = (
   transaction: TransactionContextPath,
   transactionContextPath: TransactionContextPath[],
   startAt: number | null,
-): { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: { link: string, manuallyUpdatedTransaction: string } } => {
+): {
+  transactionContextPath: TransactionContextPath[];
+  tokenSplitOrCombinationHash?: { link: string; manuallyUpdatedTransaction: string };
+} => {
   const matchingTransactions = transaction.nextTransactions
     .filter((t) => {
       return (
-        t.tokenContractAddress === transaction.tokenContractAddress &&
-        t.value === transaction.value
+        t.tokenContractAddress === transaction.tokenContractAddress && t.value === transaction.value
       );
     })
     .sort((a, b) => a.blockNumber - b.blockNumber);
@@ -36,7 +37,10 @@ const followTransactionFlow = (
   } else {
     return {
       transactionContextPath: transactionContextPath.reverse(),
-      tokenSplitOrCombinationHash: { link: getLinkToTransactions(transaction), manuallyUpdatedTransaction: '' },
+      tokenSplitOrCombinationHash: {
+        link: getLinkToTransactions(transaction),
+        manuallyUpdatedTransaction: '',
+      },
     };
   }
 };
@@ -45,7 +49,10 @@ const followTransactionFlow = (
 export async function processTransaction(
   data: TransactionContextPath,
 ): Promise<
-  { transactionContextPath: TransactionContextPath[]; tokenSplitOrCombinationHash?: { link: string, manuallyUpdatedTransaction: string } }[]
+  {
+    transactionContextPath: TransactionContextPath[];
+    tokenSplitOrCombinationHash?: { link: string; manuallyUpdatedTransaction: string };
+  }[]
 > {
   // const transactionData = readTransactionData(filePath);
   // The root's children represent initial fund splitting, so we handle it differently
@@ -60,30 +67,30 @@ export async function processTransaction(
 }
 export const step2 = async () => {
   const data: { [transactionHash: string]: TransactionContextPath } = await fetchStepData(1);
-  const step0Data: AttackedInformation[] = await fetchStepData(0)
+  const step0Data: AttackedInformation[] = await fetchStepData(0);
   const res = await Promise.all(
     Object.keys(data).map(async (transactionHash) => {
       // console.log(data[transaction])
       const transactionContextPath = await processTransaction(data[transactionHash]);
       let chainInfo: ChainInfo | {} = {};
-      step0Data.forEach(a => {
-        a.chains.forEach(c => {
-          c.attackRootTransactionHashes.forEach(att => {
+      step0Data.forEach((a) => {
+        a.chains.forEach((c) => {
+          c.attackRootTransactionHashes.forEach((att) => {
             if (att === transactionHash) {
-              chainInfo = c.chainInfo
+              chainInfo = c.chainInfo;
             }
-          }
-          )
-        })
-      })
+          });
+        });
+      });
       // console.log(chainInfo)
       return {
-        transactionHash: data[transactionHash].transactionHash, payload: { transactionContextPath, chainInfo: chainInfo }
-      }
+        transactionHash: data[transactionHash].transactionHash,
+        payload: { transactionContextPath, chainInfo: chainInfo },
+      };
     }),
   );
   for (const t of res) {
-    console.log(t.payload)
+    console.log(t.payload);
     // await writeStepDataWithTransactionHashIndex(2, t.payload, t.transactionHash);
   }
 };

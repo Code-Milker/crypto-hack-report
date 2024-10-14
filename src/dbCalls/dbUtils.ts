@@ -1,4 +1,3 @@
-
 import { promises as fs } from 'fs';
 /**
  * Utility function to check if a file exists

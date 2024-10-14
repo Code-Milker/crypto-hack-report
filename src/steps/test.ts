@@ -1,11 +1,7 @@
 import { ethers } from 'ethers';
-import {
-  createProvider,
-  fetchBlockInfoFromTransaction,
-} from '../utils';
-import { ChainInfo, TransactionContext, } from '../types';
+import { createProvider, fetchBlockInfoFromTransaction } from '../utils';
+import { ChainInfo, TransactionContext } from '../types';
 // import { fetchOutgoingEthTransactionsViaEtherscan } from '../api/etherscan';
-
 
 // Example integration with recursive function
 // export const recursiveFetchEthTransactions = async (

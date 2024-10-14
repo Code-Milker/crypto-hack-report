@@ -50,7 +50,7 @@ export const deleteDb = async (step: number) => {
   const fileExists = await checkFileExists(stepFileDb);
 
   if (fileExists) {
-    jsonfile.writeFile(stepFileDb, { data: {}, status: {} }, { spaces: 2 })
+    jsonfile.writeFile(stepFileDb, { data: {}, status: {} }, { spaces: 2 });
     // await fs.unlink(stepFileDb);
     console.log(`File ${stepFileDb} deleted successfully.`);
   } else {
@@ -117,8 +117,8 @@ export const writeStepDataWithTransactionHashIndex = async (
   const updatedDb = {
     ...db,
     data: { ...db.data, [idName]: data },
-    status: { ...db.status, lastWrittenTransaction: idName }
-  }
+    status: { ...db.status, lastWrittenTransaction: idName },
+  };
   await jsonfile.writeFile(stepFileDb, updatedDb, { spaces: 2 });
   console.log(`Successfully wrote data for step ${step}`);
 };
@@ -181,4 +181,3 @@ export async function getCachedEvents(
 
   return db.eventCache ? db.eventCache[cacheKey]?.events : null;
 }
-

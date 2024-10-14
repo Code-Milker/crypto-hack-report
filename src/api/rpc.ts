@@ -1,6 +1,12 @@
-import { ethers } from "ethers";
-import { AddressType, DecodedMethodResult as DecodedMethod, DecodedParam, TransactionContext, transactionSchema } from "../types";
-import { fetchENSName, fetchBlockTimestamp } from "../utils";
+import { ethers } from 'ethers';
+import {
+  AddressType,
+  DecodedMethodResult as DecodedMethod,
+  DecodedParam,
+  TransactionContext,
+  transactionSchema,
+} from '../types';
+import { fetchENSName, fetchBlockTimestamp } from '../utils';
 
 /**
  * Recursively processes input parameters (handles tuples and arrays).
@@ -13,7 +19,7 @@ function processParams(
   input: ethers.ParamType,
   value: any,
   params: DecodedParam[], // Use DecodedParam interface
-  parentName: string = ''
+  parentName: string = '',
 ): void {
   const paramName = input.name || '';
   const fullName = parentName ? `${parentName}${paramName ? `.${paramName}` : ''}` : paramName;
@@ -39,11 +45,10 @@ function processParams(
       name: paramName,
       fullName: fullName,
       type: input.type,
-      value: value
+      value: value,
     });
   }
 }
-
 
 /**
  * Decodes a transaction method call from its hash.
@@ -55,7 +60,7 @@ function processParams(
 export async function decodeMethod(
   transactionHash: string,
   abi: string,
-  provider: ethers.Provider
+  provider: ethers.Provider,
 ): Promise<DecodedMethod> {
   // Fetch the transaction using the transaction hash
   const transaction = await provider.getTransaction(transactionHash);
@@ -95,7 +100,7 @@ export async function decodeMethod(
     methodName,
     params,
     selector: func.selector,
-    payable: func.payable
+    payable: func.payable,
   };
 }
 
@@ -104,16 +109,19 @@ export async function decodeMethod(
  */
 export interface DecodedLogResult {
   // log: ethers.Log;
-  transactionHash: string
+  transactionHash: string;
   blockNumber: number;
   eventName: string;
   // decodedLog: ethers.Result;
   success: true;
   data: DecodedParam[]; // Decoded data
   topics: DecodedParam[]; // Decoded topics
-  address: string
+  address: string;
 }
-export interface FailedDecodedLogResult { transactionHash: string, success: false }
+export interface FailedDecodedLogResult {
+  transactionHash: string;
+  success: false;
+}
 
 /**
  * Decodes an event log entry from the blockchain.
@@ -121,7 +129,10 @@ export interface FailedDecodedLogResult { transactionHash: string, success: fals
  * @param abi - The ABI used to decode the log.
  * @returns The decoded log details, including topics and data.
  */
-export async function decodeLog(log: ethers.Log, abi: string): Promise<DecodedLogResult | FailedDecodedLogResult> {
+export async function decodeLog(
+  log: ethers.Log,
+  abi: string,
+): Promise<DecodedLogResult | FailedDecodedLogResult> {
   try {
     // Create an ethers.js Interface from the ABI
     const iface = new ethers.Interface(abi);
@@ -155,7 +166,6 @@ export async function decodeLog(log: ethers.Log, abi: string): Promise<DecodedLo
       transactionHash: log.transactionHash,
       address: log.address,
     };
-
   } catch (e) {
     return {
       transactionHash: log.transactionHash,
@@ -198,8 +208,8 @@ export const fetchTransaction = async (
 
   // If the transaction involves ETH, format its value
   const formattedValue = ethers.formatEther(parsedTransaction.value);
-  const toType = await getAddressType(parsedTransaction.to, provider)
-  const fromType = await getAddressType(parsedTransaction.from, provider)
+  const toType = await getAddressType(parsedTransaction.to, provider);
+  const fromType = await getAddressType(parsedTransaction.from, provider);
   const res: TransactionContext = {
     transactionHash,
     to: { type: toType, address: parsedTransaction.to },
@@ -210,8 +220,8 @@ export const fetchTransaction = async (
     value: parsedTransaction.value.toString(),
     formattedValue: formattedValue,
     receipt: receipt,
-    data: parsedTransaction.data
-  }
+    data: parsedTransaction.data,
+  };
   return res;
 };
 
@@ -221,18 +231,27 @@ export const fetchTransaction = async (
  * @param provider - The provider used to interact with the blockchain.
  * @returns The address of the contract behind the proxy, or null if not a proxy.
  */
-export async function getContractBehindProxy(contractAddress: string, provider: ethers.JsonRpcProvider): Promise<string | null> {
-  const EIP1967_IMPLEMENTATION_SLOT = '0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC';
+export async function getContractBehindProxy(
+  contractAddress: string,
+  provider: ethers.JsonRpcProvider,
+): Promise<string | null> {
+  const EIP1967_IMPLEMENTATION_SLOT =
+    '0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC';
   try {
     // Check for UUPS proxies (with the `implementation()` function)
-    const contract = new ethers.Contract(contractAddress, [
-      'function implementation() public view returns (address)',
-    ], provider);
+    const contract = new ethers.Contract(
+      contractAddress,
+      ['function implementation() public view returns (address)'],
+      provider,
+    );
 
     const impl = await contract.implementation().catch(() => null);
 
     // Check for EIP-1967 Implementation Slot
-    const implementationAddress = await provider.getStorage(contractAddress, EIP1967_IMPLEMENTATION_SLOT);
+    const implementationAddress = await provider.getStorage(
+      contractAddress,
+      EIP1967_IMPLEMENTATION_SLOT,
+    );
     const extractedAddress = '0x' + implementationAddress.slice(-40); // Extract last 40 hex characters
 
     // If the storage slot has a non-zero address, it's an EIP-1967 proxy
@@ -257,7 +276,7 @@ export async function getTokenTransactionsFromAddressAfterBlock(
   startBlockNumber: number,
   address: string,
   tokenContractAddress: string,
-  limit = 100
+  limit = 100,
 ) {
   let currentBlockNumber = startBlockNumber;
   let transactions = [];
@@ -266,17 +285,15 @@ export async function getTokenTransactionsFromAddressAfterBlock(
     const block = await provider.getBlock(currentBlockNumber);
 
     // Collect transactions from this block that match the specified address and token contract
-    const filteredTransactions = block?.transactions.filter(
-      (tx) => {
-        console.log(tx)
-        // tx.from.toLowerCase() === address.toLowerCase() &&
-        //   tx.to?.toLowerCase() === tokenContractAddress.toLowerCase()
+    const filteredTransactions = block?.transactions.filter((tx) => {
+      console.log(tx);
+      // tx.from.toLowerCase() === address.toLowerCase() &&
+      //   tx.to?.toLowerCase() === tokenContractAddress.toLowerCase()
 
-        return true
-      }
-    );
+      return true;
+    });
 
-    transactions.push(...filteredTransactions ?? []);
+    transactions.push(...(filteredTransactions ?? []));
 
     // Move to the next block
     currentBlockNumber++;
@@ -290,6 +307,9 @@ export async function getTokenTransactionsFromAddressAfterBlock(
   // Return only the first 'limit' transactions
   return transactions.slice(0, limit);
 }
-export const getAddressType = async (address: string, provider: ethers.JsonRpcProvider): Promise<AddressType> => {
-  return await provider.getCode(address) !== '0x' ? 'contract' : 'EOA';
-}
+export const getAddressType = async (
+  address: string,
+  provider: ethers.JsonRpcProvider,
+): Promise<AddressType> => {
+  return (await provider.getCode(address)) !== '0x' ? 'contract' : 'EOA';
+};

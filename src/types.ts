@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import ethers from 'ethers'
+import ethers from 'ethers';
 export const transactionSchema = z.object({
   hash: z.string().length(66, 'Invalid transaction hash'), // Transaction hash
   to: z.string(), // "to" can be null for contract creation transactions
@@ -16,10 +16,10 @@ export const transactionSchema = z.object({
 export interface TransactionContextAndNextTransactions extends TransactionContext {
   nextTransactions: TransactionContextAndNextTransactions[];
 }
-export type AddressType = 'EOA' | 'contract'
+export type AddressType = 'EOA' | 'contract';
 export interface AddressContext {
-  address: string,
-  type: AddressType
+  address: string;
+  type: AddressType;
 }
 export interface TransactionContext {
   to: AddressContext;
@@ -30,8 +30,8 @@ export interface TransactionContext {
   value: ethers.BigNumberish;
   formattedValue: string;
   transactionHash: string;
-  receipt: ethers.TransactionReceipt
-  data: string
+  receipt: ethers.TransactionReceipt;
+  data: string;
 }
 export interface TransactionContextPath extends TransactionContext {
   nextTransactions: TransactionContextPath[];
@@ -53,7 +53,7 @@ export enum ChainId {
 
 // Define the ChainInfo type
 export type ChainInfo = {
-  chainId: ChainId
+  chainId: ChainId;
   name: string;
   rpcUrl: string;
   nativeCurrency: {
@@ -64,7 +64,7 @@ export type ChainInfo = {
   blockExplorerUrl: string;
   blockExplorerApiUrl: string;
   apiKey: string;
-  attackRootTransactionHashes?: string[]
+  attackRootTransactionHashes?: string[];
 };
 
 export interface DecodedParam {
