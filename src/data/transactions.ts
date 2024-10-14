@@ -138,7 +138,7 @@ function findSplitCombination(
   return null; // No valid split combination found
 }
 
-export const fetchTransactionPathFromAttackInformation = async (params: {
+export const fetchTransactionInteractionInformation = async (params: {
   transactionHash: string, transactionType: TransactionNativeType | TransactionContractType, eventDepth: number, nativeDepth: number, methodDepth: number, path: (FetchContractTransaction | FetchNativeTransaction)[]
 }, provider: ethers.JsonRpcProvider, chain: ChainInfo) => {
   const res = await fetchTransactionInformation(params, provider, chain)
@@ -182,6 +182,25 @@ export const fetchTransactionPathFromAttackInformation = async (params: {
   }
 
   return { nativeTransactions, contractTransactions }
+}
+const fetchTransactionInformationPath = async (params: {
+  transactionHash: string, transactionType: TransactionNativeType | TransactionContractType, eventDepth: number, nativeDepth: number, methodDepth: number, path: (FetchContractTransaction | FetchNativeTransaction)[]
+}, provider: ethers.JsonRpcProvider, chain: ChainInfo) => {
+
+  const res = await fetchTransactionInteractionInformation(params, provider, chain)
+
+  for (const t of res.nativeTransactions) {
+    // {
+    //       transactionHash: t.transactionContext.transactionHash,
+    //       transactionType: t.transactionType,
+    //       eventDepth: eventDepth - 1,
+    //       nativeDepth: nativeDepth - 1,
+    //       methodDepth: methodDepth: - 1 }
+    fetchTransactionInformationPath({
+      path: ['TODO figure out recursive object here'], transactionType: 'directTransfer', transactionHash: t.transactionContext.transactionHash, eventDepth: params.eventDepth - 1, nativeDepth: params.nativeDepth - 1, methodDepth: params.methodDepth - 1
+    }, provider, chain)
+
+  }
 }
 
 

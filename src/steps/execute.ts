@@ -6,7 +6,7 @@ import {
 } from '../utils';
 import { decodeLog, decodeMethod, fetchTransaction, getContractBehindProxy } from '../api/rpc';
 import { generateRootAttackInformation } from '../data/attackInformation';
-import { fetchTransactionInformation, fetchTransactionPathFromAttackInformation } from '../data/transactions';
+import { fetchTransactionInformation, fetchTransactionInteractionInformation } from '../data/transactions';
 import { cacheAbi } from '../dbCalls/abi';
 
 const run = async () => {
@@ -22,8 +22,8 @@ const run = async () => {
           try {
             if (transactionHash === '0xcee4da0e7bdbb3112b2cd249b459d92c1afc23047db545c33ee60532773736d9') {
               // let path = []
-              const transactionInformation = await fetchTransactionPathFromAttackInformation({ transactionHash, transactionType: 'root', path: [], eventDepth: 5, methodDepth: 5, nativeDepth: 5 }, provider, chain.chainInfo)
-              console.log(JSON.stringify(transactionInformation, null, 2))
+              const transactionInformation = await fetchTransactionInteractionInformation({ transactionHash, transactionType: 'root', path: [], eventDepth: 5, methodDepth: 5, nativeDepth: 5 }, provider, chain.chainInfo)
+              console.log(transactionInformation)
             }
           } catch (e) {
             console.log(e)
