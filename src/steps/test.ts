@@ -2,9 +2,8 @@ import { ethers } from 'ethers';
 import {
   createProvider,
   fetchBlockInfoFromTransaction,
-  getBlockOneWeekAhead,
 } from '../utils';
-import { ChainInfo, TransactionContext, TransactionPathFromAttack } from '../types';
+import { ChainInfo, TransactionContext, } from '../types';
 // import { fetchOutgoingEthTransactionsViaEtherscan } from '../api/etherscan';
 
 

@@ -9,13 +9,14 @@ const abiCacheDb = 'db/cache/abi.json';
  * @param abi - The ABI to cache.
  */
 export async function cacheAbi(contractAddress: string, chainId: number, abi: string) {
+
+  const cacheKey = `${contractAddress}_${chainId}`; // Composite key including chainId
   const fileExists = await checkFileExists(abiCacheDb);
   let db: any = fileExists
     ? await jsonfile.readFile(abiCacheDb)
-    : { abiCache: {} };
+    : {};
 
-  const cacheKey = `${contractAddress}_${chainId}`; // Composite key including chainId
-  db.abiCache[cacheKey] = abi;
+  db[cacheKey] = JSON.parse(abi);
 
   await jsonfile.writeFile(abiCacheDb, db, { spaces: 2 });
   console.log(`ABI cached successfully for contract ${contractAddress} on chain ${chainId}`);
@@ -28,14 +29,14 @@ export async function cacheAbi(contractAddress: string, chainId: number, abi: st
  * @returns {Promise<string | null>}
  */
 export async function getCachedAbi(contractAddress: string, chainId: number): Promise<string | null> {
+  const cacheKey = `${contractAddress}_${chainId}`; // Composite key including chainId
   const fileExists = await checkFileExists(abiCacheDb);
-
   if (!fileExists) {
     return null;
   }
-
   const db = await jsonfile.readFile(abiCacheDb);
-  const cacheKey = `${contractAddress}_${chainId}`; // Composite key including chainId
-
-  return db.abiCache[cacheKey] || null;
+  if (db[cacheKey]) {
+    return JSON.stringify(db[cacheKey])
+  }
+  return null;
 }

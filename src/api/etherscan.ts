@@ -1,6 +1,6 @@
 import { ethers, InterfaceAbi } from "ethers";
 import { ChainInfo, TransactionContext, TransactionContextPath } from "../types";
-import { fetchBlockInfoFromTransaction, getBlockOneWeekAhead } from "../utils";
+import { fetchBlockInfoFromTransaction, getBlockDaysAhead } from "../utils";
 import { cacheAbi, getCachedAbi } from "../dbCalls/abi";
 
 export async function fetchContractAbi(contractAddress: string, chainInfo: ChainInfo): Promise<string> {
@@ -23,9 +23,11 @@ export async function fetchContractAbi(contractAddress: string, chainInfo: Chain
     // Cache the ABI before returning it, using contractAddress and chainId
     await cacheAbi(contractAddress, chainInfo.chainId, data.result);
     return data.result;
+  } else {
+    cacheAbi(contractAddress, chainInfo.chainId, "{}")
+    throw Error('abi cannot be found for: ' + contractAddress)
   }
 
-  throw new Error(`failed calling:  ${url}` + (data.result || 'unknown error'));
 }
 
 export function getLinkToTransactions(transactionContext: TransactionContextPath): string {
@@ -37,38 +39,35 @@ export function getLinkToTransactions(transactionContext: TransactionContextPath
   }
 }
 
-// Fetch outgoing ETH transactions via Etherscan
-// export const fetchOutgoingEthTransactionsViaEtherscan = async (
-//   provider: ethers.Provider,
-//   account: string,
-//   fromTransactionHash: string, // Transaction hash to start from
-//   chainInfo: ChainInfo,
-// ): Promise<TransactionContext[]> => {
-//   const startBlock = await fetchBlockInfoFromTransaction(fromTransactionHash, provider);
-//   const endBlock = getBlockOneWeekAhead(startBlock.number);
-//   const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${account}&startblock=${startBlock.number}&endblock=${endBlock}&sort=asc&apikey=${chainInfo.apiKey}`;
-//   const response = await fetch(url);
-//   const data = await response.json();
-//   // Filter for outgoing ETH transactions
-//   const outgoingTransactions = data.result.filter(
-//     (tx: any) => tx.from.toLowerCase() === account.toLowerCase() && tx.value > 0,
-//   );
-//   // Map to TransactionPathWithContext format
-//   const transactionDetails: TransactionContext[] = outgoingTransactions.map((tx: any) => {
-//     console.log(tx)
-//     const ethAmount = ethers.formatEther(tx.value);
-//     const transaction: TransactionContext = {
-//       transactionHash: tx.hash,
-//       from: tx.from,
-//       to: tx.to,
-//       amount: ethAmount,
-//       timeStamp: new Date(tx.timeStamp * 1000).toISOString(),
-//       blockNumber: tx.blockNumber,
-//       ensName: '', // Optionally add ENS lookup logic here
-//       receipt: {} as ethers.TransactionReceipt
-//     }
-//     return transaction;
-//   });
-//
-//   return transactionDetails;
-// };
+export interface TransactionDetails {
+  blockNumber: string;
+  blockHash: string;
+  timeStamp: string;
+  hash: string;
+  nonce: string;
+  transactionIndex: string;
+  from: string;
+  to: string;
+  value: string;
+  gas: string;
+  gasPrice: string;
+  input: string;
+  methodId: string;
+  functionName: string;
+  contractAddress: string;
+  cumulativeGasUsed: string;
+  txreceipt_status: string;
+  gasUsed: string;
+  confirmations: string;
+  isError: string;
+}
+export async function fetchTransactionForAddress(address: string, endBlock: number, chainInfo: ChainInfo): Promise<TransactionDetails[]> {
+  const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=${endBlock}&sort=asc&offset=500&apikey=${chainInfo.apiKey}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (data.status !== '1') {
+    throw new Error('Error fetching transactions from Etherscan: ' + data.message);
+  }
+  const nativeTransactions = data.result
+  return nativeTransactions;
+}

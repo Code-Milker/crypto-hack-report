@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { AddressType, DecodedParam, TransactionContext, transactionSchema } from "../types";
+import { AddressType, DecodedMethodResult as DecodedMethod, DecodedParam, TransactionContext, transactionSchema } from "../types";
 import { fetchENSName, fetchBlockTimestamp } from "../utils";
 
 /**
@@ -44,15 +44,6 @@ function processParams(
   }
 }
 
-/**
- * Interface for the result of decoding a method.
- */
-interface DecodedMethodResult {
-  methodName: string;
-  params: DecodedParam[];
-  selector: string;
-  payable: boolean;
-}
 
 /**
  * Decodes a transaction method call from its hash.
@@ -65,7 +56,7 @@ export async function decodeMethod(
   transactionHash: string,
   abi: string,
   provider: ethers.Provider
-): Promise<DecodedMethodResult> {
+): Promise<DecodedMethod> {
   // Fetch the transaction using the transaction hash
   const transaction = await provider.getTransaction(transactionHash);
 
@@ -111,14 +102,18 @@ export async function decodeMethod(
 /**
  * Interface for the result of decoding a log.
  */
-interface DecodedLogResult {
-  log: ethers.Log;
+export interface DecodedLogResult {
+  // log: ethers.Log;
+  transactionHash: string
+  blockNumber: number;
   eventName: string;
-  decodedLog: ethers.Result;
+  // decodedLog: ethers.Result;
   success: true;
   data: DecodedParam[]; // Decoded data
   topics: DecodedParam[]; // Decoded topics
+  address: string
 }
+export interface FailedDecodedLogResult { transactionHash: string, success: false }
 
 /**
  * Decodes an event log entry from the blockchain.
@@ -126,7 +121,7 @@ interface DecodedLogResult {
  * @param abi - The ABI used to decode the log.
  * @returns The decoded log details, including topics and data.
  */
-export async function decodeLog(log: ethers.Log, abi: string): Promise<DecodedLogResult | { log: ethers.Log, success: false }> {
+export async function decodeLog(log: ethers.Log, abi: string): Promise<DecodedLogResult | FailedDecodedLogResult> {
   try {
     // Create an ethers.js Interface from the ABI
     const iface = new ethers.Interface(abi);
@@ -151,20 +146,20 @@ export async function decodeLog(log: ethers.Log, abi: string): Promise<DecodedLo
         processParams(input, decodedLog[index], data);
       }
     });
-
     return {
       success: true,
       topics,
       data,
       eventName: eventFragment.name,
-      decodedLog,
-      log
+      blockNumber: log.blockNumber,
+      transactionHash: log.transactionHash,
+      address: log.address,
     };
 
   } catch (e) {
     return {
+      transactionHash: log.transactionHash,
       success: false,
-      log
     };
   }
 }
@@ -175,7 +170,7 @@ export async function decodeLog(log: ethers.Log, abi: string): Promise<DecodedLo
  * @param provider - The provider used to interact with the blockchain.
  * @returns Parsed transaction details in a `TransactionContext`.
  */
-export const fetchTransactionDetails = async (
+export const fetchTransaction = async (
   transactionHash: string,
   provider: ethers.JsonRpcProvider,
 ): Promise<TransactionContext> => {
@@ -202,7 +197,7 @@ export const fetchTransactionDetails = async (
   const timeStamp = await fetchBlockTimestamp(parsedTransaction.blockNumber, provider);
 
   // If the transaction involves ETH, format its value
-  const ethAmount = ethers.formatEther(parsedTransaction.value);
+  const formattedValue = ethers.formatEther(parsedTransaction.value);
   const toType = await getAddressType(parsedTransaction.to, provider)
   const fromType = await getAddressType(parsedTransaction.from, provider)
   const res: TransactionContext = {
@@ -212,8 +207,10 @@ export const fetchTransactionDetails = async (
     timeStamp,
     blockNumber: parsedTransaction.blockNumber ?? -1,
     ensName,
-    amount: ethAmount,
-    receipt: receipt
+    value: parsedTransaction.value.toString(),
+    formattedValue: formattedValue,
+    receipt: receipt,
+    data: parsedTransaction.data
   }
   return res;
 };
@@ -255,7 +252,44 @@ export async function getContractBehindProxy(contractAddress: string, provider: 
   }
 }
 
-export async function getAddressType(address: string, provider: ethers.JsonRpcProvider): Promise<AddressType> {
-  const code = await provider.getCode(address);
-  return code === '0x' ? 'EOA' : 'contract'  // '0x' means it's a regular wallet, anything else indicates a contract
+export async function getTokenTransactionsFromAddressAfterBlock(
+  provider: ethers.JsonRpcProvider,
+  startBlockNumber: number,
+  address: string,
+  tokenContractAddress: string,
+  limit = 100
+) {
+  let currentBlockNumber = startBlockNumber;
+  let transactions = [];
+
+  while (transactions.length < limit) {
+    const block = await provider.getBlock(currentBlockNumber);
+
+    // Collect transactions from this block that match the specified address and token contract
+    const filteredTransactions = block?.transactions.filter(
+      (tx) => {
+        console.log(tx)
+        // tx.from.toLowerCase() === address.toLowerCase() &&
+        //   tx.to?.toLowerCase() === tokenContractAddress.toLowerCase()
+
+        return true
+      }
+    );
+
+    transactions.push(...filteredTransactions ?? []);
+
+    // Move to the next block
+    currentBlockNumber++;
+
+    // Stop if we already have enough transactions
+    if (transactions.length >= limit) {
+      break;
+    }
+  }
+
+  // Return only the first 'limit' transactions
+  return transactions.slice(0, limit);
+}
+export const getAddressType = async (address: string, provider: ethers.JsonRpcProvider): Promise<AddressType> => {
+  return await provider.getCode(address) !== '0x' ? 'contract' : 'EOA';
 }

@@ -10,10 +10,11 @@ export const transactionSchema = z.object({
   nonce: z.number().min(0), // Transaction nonce, non-negative integer
   blockNumber: z.number().nullable(), // Can be null if the transaction is not mined yet
   chainId: z.bigint(), // The chain ID where the transaction took place
+  data: z.string(),
 });
 
-export interface TransactionPathFromAttack extends TransactionContext {
-  nextTransactions: TransactionPathFromAttack[] | TokenTransactionContext[];
+export interface TransactionContextAndNextTransactions extends TransactionContext {
+  nextTransactions: TransactionContextAndNextTransactions[];
 }
 export type AddressType = 'EOA' | 'contract'
 export interface AddressContext {
@@ -26,12 +27,11 @@ export interface TransactionContext {
   timeStamp: string;
   blockNumber: number;
   ensName?: string; // Optional if ENS is not available
-  amount: string;
+  value: ethers.BigNumberish;
+  formattedValue: string;
   transactionHash: string;
   receipt: ethers.TransactionReceipt
-}
-export interface TokenTransactionContext extends TransactionContext {
-  tokenContractAddress: string;
+  data: string
 }
 export interface TransactionContextPath extends TransactionContext {
   nextTransactions: TransactionContextPath[];
@@ -82,4 +82,14 @@ export interface AttackedInformation {
     chainId: ChainId;
     attackRootTransactionHashes: string[];
   }[];
+}
+
+/**
+ * Interface for the result of decoding a method.
+ */
+export interface DecodedMethodResult {
+  methodName: string;
+  params: DecodedParam[];
+  selector: string;
+  payable: boolean;
 }

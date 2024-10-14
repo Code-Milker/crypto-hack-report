@@ -1,7 +1,6 @@
 import { ethers } from 'ethers';
 import {
   ChainInfo,
-  TokenTransactionContext,
   TransactionContext
 } from './types';
 import 'dotenv/config'; // Loads .env variables into process.env
@@ -179,10 +178,9 @@ export const fetchBlockInfoFromTransaction = async (
   return blockInfo;
   // Log the block information
 };
-export function getBlockOneWeekAhead(startBlock: number) {
+export function getBlockDaysAhead(startBlock: number, days: number) {
   const blocksPerDay = 6500; // Approximate blocks per day on Ethereum (13 seconds per block)
-  const daysInWeek = 7;
-  const blocksInWeek = blocksPerDay * daysInWeek; // About 45,500 blocks in a week
+  const blocksInWeek = blocksPerDay * days; // About 45,500 blocks in a week
   // Calculate the block number one week ahead
   const endBlock = startBlock + blocksInWeek;
   return endBlock;

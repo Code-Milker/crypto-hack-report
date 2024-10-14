@@ -1,6 +1,7 @@
 import jsonfile from 'jsonfile';
 import { checkFileExists } from './dbUtils';
 import { stringifyBigInt } from '../utils';
+import { FetchContractTransaction, FetchNativeTransaction } from '../data/transactions';
 const cacheDb = 'db/cache/transaction.json';
 
 /**
@@ -26,15 +27,18 @@ export async function cacheTransactionInformation(transactionHash: string, chain
  * @param key - The key to retrieve (ABI, method, or event).
  * @returns {Promise<any | null>}
  */
-export async function getCachedTransactionInformation(transactionHash: string, chainId: number): Promise<any | null> {
+export async function getCachedTransactionInformation(transactionHash: string, chainId: number): Promise<FetchContractTransaction | FetchNativeTransaction | null> {
   const fileExists = await checkFileExists(cacheDb);
 
   if (!fileExists) {
-    return null;
+    throw Error(cacheDb + ' does not exist')
   }
 
   const db = await jsonfile.readFile(cacheDb);
   const cacheKey = `${transactionHash}_${chainId}`; // Composite key based on transaction hash and chainId
+  if (!db.transactionCache[cacheKey]) {
+    return null
+  }
 
-  return db.transactionCache[cacheKey] || null;
+  return JSON.parse(db.transactionCache[cacheKey]) || null;
 }
