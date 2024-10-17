@@ -1,6 +1,6 @@
 import { ethers, InterfaceAbi } from 'ethers';
 import { ChainInfo, TransactionContext, TransactionContextPath } from '../types';
-import { delay, fetchBlockInfoFromTransaction, getBlockDaysAhead } from '../utils';
+import { delay, } from '../utils';
 import { cacheAbi, getCachedAbi } from '../dbCalls/abi';
 
 export async function fetchContractAbi(

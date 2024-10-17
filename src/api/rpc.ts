@@ -6,7 +6,7 @@ import {
   TransactionContext,
   transactionSchema,
 } from '../types';
-import { fetchENSName, fetchBlockTimestamp } from '../utils';
+import { fetchENSName, } from '../utils';
 
 /**
  * Recursively processes input parameters (handles tuples and arrays).
@@ -312,4 +312,31 @@ export const getAddressType = async (
   provider: ethers.JsonRpcProvider,
 ): Promise<AddressType> => {
   return (await provider.getCode(address)) !== '0x' ? 'contract' : 'EOA';
+};
+
+export const getTokenName = (
+  tokenAddress: string,
+  provider: ethers.JsonRpcProvider,
+): Promise<string> => {
+  const contract = new ethers.Contract(
+    tokenAddress,
+    ['function name() view returns (string)'],
+    provider,
+  )
+  console.log(contract)
+  return contract.name();
+};
+
+export const fetchBlockTimestamp = async (
+  blockNumber: number | null,
+  provider: ethers.Provider,
+) => {
+  if (!blockNumber) return '';
+  try {
+    const block = await provider.getBlock(blockNumber);
+    return block ? new Date(block.timestamp * 1000).toISOString() : '';
+  } catch (error) {
+    console.error(`Failed to fetch block for block number: ${blockNumber}`, error);
+    return '';
+  }
 };

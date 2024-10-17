@@ -1,37 +1,25 @@
-import { BigNumberish } from 'ethers';
-import { chainInfoMap } from '../info';
 import { ChainInfo } from '../types';
 import { delay } from '../utils';
+import { cacheTokenPriceUSD, getcachedTokenPriceUSD, TokenPriceUSD } from '../dbCalls/coinGeckoData';
+import { getTokenName } from './rpc';
 
-async function fetchNativeTokenPrice(chainInfo: ChainInfo): Promise<number> {
+export async function fetchTokenCoinGeckoData(name: string, chainInfo: ChainInfo): Promise<TokenPriceUSD> {
+  let tokenUsdData = await getcachedTokenPriceUSD(name, chainInfo.chainId);
+  if (tokenUsdData !== null) {
+    console.log('cache found for: ', name)
+    return tokenUsdData;
+  }
   await delay(1000);
-  const name = chainInfo.nativeCurrency.name.toLowerCase();
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${name}&vs_currencies=usd`;
 
   const response = await fetch(url);
 
   const data = await response.json();
   if (data[name] && data[name].usd) {
-    return data[name].usd;
+    const entry = { on: new Date(), ...data[name] }
+    await cacheTokenPriceUSD(name, chainInfo.chainId, entry)
+    return entry;
   }
-  console.log(data);
-
   throw new Error(`Unable to fetch ${name.toUpperCase()} price`);
 }
 
-// Function to compare native token transfers within $150 range
-export async function isNativeTokenTransferWithinRange(
-  incomingValue: number, // Incoming transaction value in native tokens
-  outgoingValue: number, // Outgoing transaction value in native tokens
-  allowedRange: number,
-  chainInfo: ChainInfo, // Chain information (from chainInfoMap)
-): Promise<boolean> {
-  // const nativeTokenPrice = await fetchNativeTokenPrice(chainInfo);
-  const nativeTokenPrice = 0.6; //temp
-  // Convert token values to USD
-  const incomingUSD = incomingValue * nativeTokenPrice;
-  const outgoingUSD = outgoingValue * nativeTokenPrice;
-  console.log({ incomingValue, incomingUSD });
-  console.log({ outgoingValue, outgoingUSD });
-  return Math.abs(incomingUSD - outgoingUSD) <= allowedRange;
-}

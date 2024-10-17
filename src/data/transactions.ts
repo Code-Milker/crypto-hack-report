@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { ChainInfo, TransactionContext, DecodedMethodResult, DecodedParam } from '../types';
-import { delay, getBlockDaysAhead } from '../utils';
+import { delay, getBlockDaysAhead, isTokenTransferWithinRange } from '../utils';
 import { fetchContractAbi, fetchTransactionForAddress, TransactionDetails } from '../api/etherscan';
 import {
   decodeLog,
@@ -10,12 +10,13 @@ import {
   DecodedLogResult,
   FailedDecodedLogResult,
   getTokenTransactionsFromAddressAfterBlock,
+  getTokenName,
 } from '../api/rpc';
 import {
   cacheTransactionInformation,
   getCachedTransactionInformation,
 } from '../dbCalls/transaction';
-import { isNativeTokenTransferWithinRange } from '../api/coinGecko';
+import { fetchTokenCoinGeckoData, } from '../api/coinGecko';
 import { sum } from 'lodash';
 export const fetchMethodInformationByTransactionHash = async (
   transactionHash: string,
@@ -233,12 +234,12 @@ export const fetchTransactionInteractionInformation = async (
     );
     if (transactionInformationFromToAddress.transactionType[0] === 'nativeTransfer') {
       const nativeTransaction = transactionInformationFromToAddress as FetchNativeTransaction;
-
-      const possibleDirectTransfer = await isNativeTokenTransferWithinRange(
+      const tokenPriceUsd = await fetchTokenCoinGeckoData(chain.nativeCurrency.name.toLowerCase(), chain)
+      const possibleDirectTransfer = await isTokenTransferWithinRange(
         Number(transactionInformation.transactionContext.formattedValue),
         Number(transactionInformationFromToAddress.transactionContext.formattedValue),
         200,
-        chain,
+        tokenPriceUsd,
       );
       const split = splitTransaction(transactionsForAddress, t, 5);
       const sum = sumTransactions(transactionsForAddress, t);
@@ -292,6 +293,7 @@ interface TransactionInformationNode {
   contractTransactions: FetchContractTransaction[];
   next?: TransactionInformationNode;
 }
+
 export const fetchTransactionInformationPath = async (
   transactionHash: string,
   path: TransactionInformationNode | null,
@@ -299,13 +301,11 @@ export const fetchTransactionInformationPath = async (
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
 ): Promise<TransactionInformationNode | null> => {
-  console.log(depth)
+  console.log({ transactionHash, path, depth });
   if (depth === 0) {
     return path;
   }
   const res = await fetchTransactionInteractionInformation(transactionHash, provider, chain); // determine correct Path to choose here
-  console.log(res.transactionInformation)
-
   // runs transaction
   // if native will be direct, split, sum, unknown
   const transactionType = res.transactionInformation.transactionType[0];

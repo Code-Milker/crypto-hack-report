@@ -29,6 +29,7 @@ const run = async () => {
                 provider,
                 chain.chainInfo,
               );
+              console.log('path for: ' + transactionHash + 'generated');
               // console.log(JSON.stringify(transactionInformation, null, 2));
             }
           } catch (e) {
