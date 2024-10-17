@@ -1,11 +1,6 @@
 import { ethers } from 'ethers';
-import { chainInfoMap } from '../info';
-import { ChainId, ChainInfo, TransactionContext } from '../types';
-import { delay } from '../utils';
-import { decodeLog, decodeMethod, fetchTransaction, getContractBehindProxy } from '../api/rpc';
 import { generateRootAttackInformation } from '../data/attackInformation';
 import { fetchTransactionInformation, fetchTransactionInformationPath } from '../data/transactions';
-import { cacheAbi } from '../dbCalls/abi';
 
 const run = async () => {
   const attackInformation = await generateRootAttackInformation();
@@ -20,17 +15,15 @@ const run = async () => {
               transactionHash ===
               '0xcee4da0e7bdbb3112b2cd249b459d92c1afc23047db545c33ee60532773736d9'
             ) {
-              // let path = []
-              //
               const transactionInformation = await fetchTransactionInformationPath(
-                transactionHash,
+                '0x99dab5787142c01c30c5a53389ecaa3d0b3392a4577a984fb1dc3ea605286341',
                 null,
-                4,
+                1,
                 provider,
                 chain.chainInfo,
               );
+              console.log(JSON.stringify({ transactionInformation: transactionInformation?.nativeTransactions }, null, 2))
               console.log('path for: ' + transactionHash + 'generated');
-              // console.log(JSON.stringify(transactionInformation, null, 2));
             }
           } catch (e) {
             console.log(e);

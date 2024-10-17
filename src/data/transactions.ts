@@ -9,15 +9,13 @@ import {
   getContractBehindProxy,
   DecodedLogResult,
   FailedDecodedLogResult,
-  getTokenTransactionsFromAddressAfterBlock,
-  getTokenName,
 } from '../api/rpc';
 import {
   cacheTransactionInformation,
   getCachedTransactionInformation,
 } from '../dbCalls/transaction';
 import { fetchTokenCoinGeckoData, } from '../api/coinGecko';
-import { sum } from 'lodash';
+import { KnownWallets } from '../info';
 export const fetchMethodInformationByTransactionHash = async (
   transactionHash: string,
   provider: ethers.JsonRpcProvider,
@@ -203,7 +201,6 @@ function findSplitCombination(
 
   return null; // No valid split combination found
 }
-// looks
 export const fetchTransactionInteractionInformation = async (
   transactionHash: string,
   provider: ethers.JsonRpcProvider,
@@ -235,6 +232,7 @@ export const fetchTransactionInteractionInformation = async (
     if (transactionInformationFromToAddress.transactionType[0] === 'nativeTransfer') {
       const nativeTransaction = transactionInformationFromToAddress as FetchNativeTransaction;
       const tokenPriceUsd = await fetchTokenCoinGeckoData(chain.nativeCurrency.name.toLowerCase(), chain)
+      console.log(transactionInformation.transactionContext.transactionHash)
       const possibleDirectTransfer = await isTokenTransferWithinRange(
         Number(transactionInformation.transactionContext.formattedValue),
         Number(transactionInformationFromToAddress.transactionContext.formattedValue),
@@ -301,11 +299,11 @@ export const fetchTransactionInformationPath = async (
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
 ): Promise<TransactionInformationNode | null> => {
-  console.log({ transactionHash, path, depth });
   if (depth === 0) {
     return path;
   }
   const res = await fetchTransactionInteractionInformation(transactionHash, provider, chain); // determine correct Path to choose here
+  const knownWallet = KnownWallets[res.transactionInformation.transactionContext.to.address]
   // runs transaction
   // if native will be direct, split, sum, unknown
   const transactionType = res.transactionInformation.transactionType[0];
@@ -366,38 +364,3 @@ export const fetchTransactionInformationPath = async (
   return res;
 };
 
-// if (res.transactionInformation.transactionType === 'nativeTransfer') {
-// starting here we have a transaction, lets see if we can grab the next correct transaction
-// for (const t of res.nativeTransactions) {
-
-// console.log(t.transactionContext.transactionHash);
-// {
-//       transactionHash: t.transactionContext.transactionHash,
-//       transactionType: t.transactionType,
-//       eventDepth: eventDepth - 1,
-//       nativeDepth: nativeDepth - 1,
-//       methodDepth: methodDepth: - 1 }
-// fetchTransactionInformationPath(
-//   {
-//     path: ['TODO figure out recursive object here'],
-//     transactionType: 'directTransfer',
-//     transactionHash: t.transactionContext.transactionHash,
-//     eventDepth: params.eventDepth - 1,
-//     nativeDepth: params.nativeDepth - 1,
-//     methodDepth: params.methodDepth - 1,
-//   },
-//   provider,
-//   chain,
-// );
-// }
-// };
-
-// Usage
-
-// const rootTransactionDetails: TransactionContext = await fetchTransactionDetails(params.transactionHash, provider);
-// if (rootTransactionDetails.to.type === 'EOA') { // we know its a  transfer
-//
-// }
-// if (rootTransactionDetails.to.type === 'contract') { //
-//
-//}

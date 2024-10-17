@@ -1,4 +1,4 @@
-import { KnownWallets, WalletInformation, KnownWalletsMap } from '../info';
+import { KnownWallets, AddressInformation, KnownWalletsMap } from '../info';
 import { fetchStepData, writeStepDataWithTransactionHashIndex } from '../dbCall/db';
 import { TransactionContextPath } from '../types';
 // Main function to process the transaction
@@ -36,9 +36,9 @@ async function fetchAttackWalletsAndPath(
 }
 const lookUpKnownWallets = (res: { wallets: string[]; path: string[]; id: number }[]) => {
   return res.map((a) => {
-    const walletsWithInfo: { [address: string]: WalletInformation } = {};
+    const walletsWithInfo: { [address: string]: AddressInformation } = {};
     const updatedWallets = a.wallets.forEach((w, i) => {
-      let matchingWallet: WalletInformation = KnownWallets[w] || {
+      let matchingWallet: AddressInformation = KnownWallets[w] || {
         alias: '',
         type: 'Unknown',
         chainIds: [],

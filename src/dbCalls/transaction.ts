@@ -16,10 +16,9 @@ export async function cacheTransactionInformation(
   value: any,
 ) {
   const fileExists = await checkFileExists(cacheDb);
-  let db: any = fileExists ? await jsonfile.readFile(cacheDb) : { transactionCache: {} };
-
+  let db: any = fileExists ? await jsonfile.readFile(cacheDb) : {};
   const cacheKey = `${transactionHash}_${chainId}`; // Composite key based on transaction hash and chainId
-  db.transactionCache[cacheKey] = stringifyBigInt(value);
+  db[cacheKey] = stringifyBigInt(value);
   await jsonfile.writeFile(cacheDb, db, { spaces: 2 });
   console.log(`cached successfully for transaction ${transactionHash} on chain ${chainId}`);
 }
@@ -43,7 +42,7 @@ export async function getCachedTransactionInformation(
 
   const db = await jsonfile.readFile(cacheDb);
   const cacheKey = `${transactionHash}_${chainId}`; // Composite key based on transaction hash and chainId
-  if (!db.transactionCache[cacheKey]) {
+  if (!db[cacheKey]) {
     return null;
   }
 

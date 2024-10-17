@@ -7,6 +7,7 @@ import {
   transactionSchema,
 } from '../types';
 import { fetchENSName, } from '../utils';
+import { KnownWallets } from '../info';
 
 /**
  * Recursively processes input parameters (handles tuples and arrays).
@@ -212,8 +213,8 @@ export const fetchTransaction = async (
   const fromType = await getAddressType(parsedTransaction.from, provider);
   const res: TransactionContext = {
     transactionHash,
-    to: { type: toType, address: parsedTransaction.to },
-    from: { type: fromType, address: parsedTransaction.from },
+    to: { type: toType, address: parsedTransaction.to, info: KnownWallets[parsedTransaction.to] ?? null },
+    from: { type: fromType, address: parsedTransaction.from, info: KnownWallets[parsedTransaction.from] ?? null },
     timeStamp,
     blockNumber: parsedTransaction.blockNumber ?? -1,
     ensName,

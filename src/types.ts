@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import ethers from 'ethers';
+import { AddressInformation, KnownWalletsMap } from './info';
 export const transactionSchema = z.object({
   hash: z.string().length(66, 'Invalid transaction hash'), // Transaction hash
   to: z.string(), // "to" can be null for contract creation transactions
@@ -20,6 +21,7 @@ export type AddressType = 'EOA' | 'contract';
 export interface AddressContext {
   address: string;
   type: AddressType;
+  info: AddressInformation | null
 }
 export interface TransactionContext {
   to: AddressContext;

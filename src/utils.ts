@@ -41,10 +41,8 @@ export async function isTokenTransferWithinRange(
   allowedRange: number, // dollar amount range it can fall within
   tokenData: TokenPriceUSD
 ): Promise<boolean> {
-
   const incomingUSD = incomingValue * tokenData.usd;
   const outgoingUSD = outgoingValue * tokenData.usd;
-  console.log({ incomingUSD, outgoingUSD, allowedRange })
+  console.log({ incomingUSD, outgoingUSD, allowedRange, match: Math.abs(incomingUSD - outgoingUSD) <= allowedRange })
   return Math.abs(incomingUSD - outgoingUSD) <= allowedRange;
-  return true;
 }
