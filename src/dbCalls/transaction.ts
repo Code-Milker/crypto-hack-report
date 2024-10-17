@@ -1,7 +1,7 @@
 import jsonfile from 'jsonfile';
 import { checkFileExists } from './dbUtils';
 import { stringifyBigInt } from '../utils';
-import { FetchContractTransaction, FetchNativeTransaction } from '../data/transactions';
+import { FetchTransactionInformation, } from '../data/transactions';
 const cacheDb = 'db/cache/transaction.json';
 
 /**
@@ -20,7 +20,6 @@ export async function cacheTransactionInformation(
   const cacheKey = `${transactionHash}_${chainId}`; // Composite key based on transaction hash and chainId
   db[cacheKey] = stringifyBigInt(value);
   await jsonfile.writeFile(cacheDb, db, { spaces: 2 });
-  console.log(`cached successfully for transaction ${transactionHash} on chain ${chainId}`);
 }
 
 /**
@@ -33,7 +32,7 @@ export async function cacheTransactionInformation(
 export async function getCachedTransactionInformation(
   transactionHash: string,
   chainId: number,
-): Promise<FetchContractTransaction | FetchNativeTransaction | null> {
+): Promise<FetchTransactionInformation | null> {
   const fileExists = await checkFileExists(cacheDb);
 
   if (!fileExists) {
@@ -46,5 +45,5 @@ export async function getCachedTransactionInformation(
     return null;
   }
 
-  return JSON.parse(db.transactionCache[cacheKey]) || null;
+  return JSON.parse(db[cacheKey]) || null;
 }

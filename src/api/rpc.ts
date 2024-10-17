@@ -79,7 +79,7 @@ export async function decodeMethod(
   if (!decodedInput) {
     throw new Error('Unable to decode transaction');
   }
-
+  console.log(transactionHash)
   const methodName = decodedInput.name; // Get the method name
   const func = iface.getFunction(methodName); // Get the function definition from the ABI
 
@@ -120,7 +120,7 @@ export interface DecodedLogResult {
   address: string;
 }
 export interface FailedDecodedLogResult {
-  transactionHash: string;
+  address: string;
   success: false;
 }
 
@@ -169,7 +169,7 @@ export async function decodeLog(
     };
   } catch (e) {
     return {
-      transactionHash: log.transactionHash,
+      address: log.transactionHash,
       success: false,
     };
   }
@@ -341,3 +341,47 @@ export const fetchBlockTimestamp = async (
     return '';
   }
 };
+
+export async function getAverageBlockTime(provider: ethers.JsonRpcProvider): Promise<number> {
+  try {
+    // Get the latest block
+    const latestBlock = await provider.getBlock('latest');
+    if (!latestBlock) {
+      throw new Error('Error fetching block time: unable to get latest block');
+    }
+    // Get a block from some blocks ago to calculate the time difference
+    const previousBlock = await provider.getBlock(latestBlock?.number - 10); // Adjust this value if needed
+
+    if (!previousBlock) {
+      throw new Error('Error fetching block time: unable to get latest block');
+    }
+
+    // Calculate the block time in seconds
+    const blockTime = (latestBlock.timestamp - previousBlock.timestamp) / (latestBlock.number - previousBlock.number);
+
+    return blockTime;
+  } catch (error) {
+    console.error('Error fetching block time:', error);
+    throw error;
+  }
+}
+export async function getBlocksPerDay(provider: ethers.JsonRpcProvider): Promise<number> {
+  try {
+    const averageBlockTime = await getAverageBlockTime(provider);
+    // Calculate blocks per day based on average block time
+    console.log({ averageBlockTime })
+    const blocksPerDay = 86400 / averageBlockTime;
+    return Math.round(blocksPerDay);
+  } catch (error) {
+    console.error('Error calculating blocks per day:', error);
+    throw error;
+  }
+}
+
+export async function getBlockDaysAhead(startBlock: number, days: number, provider: ethers.JsonRpcProvider) {
+  const blocksPerDay = await getBlocksPerDay(provider);
+  const blocksInWeek = blocksPerDay * (days * 1.2);
+  // Calculate the block number one week ahead
+  const endBlock = startBlock + blocksInWeek;
+  return endBlock;
+}

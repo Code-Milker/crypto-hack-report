@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import ethers from 'ethers';
 import { AddressInformation, KnownWalletsMap } from './info';
+import { DecodedEvents } from './data/transactions';
 export const transactionSchema = z.object({
   hash: z.string().length(66, 'Invalid transaction hash'), // Transaction hash
   to: z.string(), // "to" can be null for contract creation transactions
@@ -34,6 +35,11 @@ export interface TransactionContext {
   transactionHash: string;
   receipt: ethers.TransactionReceipt;
   data: string;
+  decoded?: {
+    events: DecodedEvents;
+    method: DecodedMethodResult | null;
+
+  }
 }
 export interface TransactionContextPath extends TransactionContext {
   nextTransactions: TransactionContextPath[];

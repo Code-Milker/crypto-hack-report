@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { generateRootAttackInformation } from '../data/attackInformation';
-import { fetchTransactionInformation, fetchTransactionInformationPath } from '../data/transactions';
+import { fetchTransactionInformation, fetchTransactionInformationPath, } from '../data/transactions';
 
 const run = async () => {
   const attackInformation = await generateRootAttackInformation();
@@ -16,14 +16,17 @@ const run = async () => {
               '0xcee4da0e7bdbb3112b2cd249b459d92c1afc23047db545c33ee60532773736d9'
             ) {
               const transactionInformation = await fetchTransactionInformationPath(
-                '0x99dab5787142c01c30c5a53389ecaa3d0b3392a4577a984fb1dc3ea605286341',
-                null,
-                1,
+                '0xcee4da0e7bdbb3112b2cd249b459d92c1afc23047db545c33ee60532773736d9',
+                2,
                 provider,
                 chain.chainInfo,
               );
-              console.log(JSON.stringify({ transactionInformation: transactionInformation?.nativeTransactions }, null, 2))
-              console.log('path for: ' + transactionHash + 'generated');
+              if (transactionInformation) {
+                const { next } = transactionInformation
+              } else {
+
+              }
+
             }
           } catch (e) {
             console.log(e);

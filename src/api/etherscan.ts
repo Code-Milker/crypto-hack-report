@@ -65,16 +65,19 @@ export interface TransactionDetails {
 }
 export async function fetchTransactionForAddress(
   address: string,
+  startblock: number,
   endBlock: number,
   chainInfo: ChainInfo,
+  limit = 100
 ): Promise<TransactionDetails[]> {
   await delay(300);
-  const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=${endBlock}&sort=asc&offset=500&apikey=${chainInfo.apiKey}`;
+  const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=${startblock}&endblock=${endBlock}&limit=500&sort=asc&apikey=${chainInfo.apiKey}`;
   const response = await fetch(url);
   const data = await response.json();
   if (data.status !== '1') {
     throw new Error('Error fetching transactions from Etherscan: ' + data.message);
   }
-  const nativeTransactions = data.result;
+  let nativeTransactions = data.result as TransactionDetails[];
+  nativeTransactions = nativeTransactions.slice(0, limit)
   return nativeTransactions;
 }

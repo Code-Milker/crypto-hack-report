@@ -6,7 +6,6 @@ import { getTokenName } from './rpc';
 export async function fetchTokenCoinGeckoData(name: string, chainInfo: ChainInfo): Promise<TokenPriceUSD> {
   let tokenUsdData = await getcachedTokenPriceUSD(name, chainInfo.chainId);
   if (tokenUsdData !== null) {
-    console.log('cache found for: ', name)
     return tokenUsdData;
   }
   await delay(1000);
