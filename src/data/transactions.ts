@@ -1,7 +1,10 @@
 import { ethers } from 'ethers';
-import { ChainInfo, TransactionContext, DecodedMethodResult } from '../types';
-import { delay, isTokenTransferWithinRange } from '../utils';
-import { fetchContractAbi, fetchTransactionForAddress, TransactionDetails } from '../api/etherscan';
+import { ChainInfo, TokenInfo, TransactionContext } from '../types';
+import { delay, stringifyBigInt } from '../utils';
+import {
+  fetchContractAbi,
+  fetchTransactionForAddress as fetchTransactionsForAddress,
+} from '../api/etherscan';
 import {
   decodeLog,
   decodeMethod,
@@ -15,58 +18,33 @@ import {
   cacheTransactionInformation,
   getCachedTransactionInformation,
 } from '../dbCalls/transaction';
-import { fetchTokenCoinGeckoData, } from '../api/coinGecko';
 import { KnownWallets } from '../info';
 import { values } from 'lodash';
-export const fetchMethodInformationByTransactionHash = async (
-  transactionHash: string,
-  provider: ethers.JsonRpcProvider,
-  chain: ChainInfo,
-) => {
-  const rootTransactionDetails: TransactionContext = await fetchTransaction(
-    transactionHash,
-    provider,
-  );
-  const rootAddress = await getContractBehindProxy(rootTransactionDetails.to.address, provider);
-  const contractAbi = rootAddress
-    ? await fetchContractAbi(rootAddress, chain)
-    : await fetchContractAbi(rootTransactionDetails.to.address, chain);
-  if (contractAbi === '{}') {
-    return null;
-  }
-  try {
-    const res = await decodeMethod(transactionHash, contractAbi, provider)
-    return res
-  } catch {
-
-    return null;
-  }
-};
-export interface DecodedEvents {
+import { getTokenId } from '../api/coinGecko';
+export interface DecodedLogs {
   decodedLogs: DecodedLogResult[];
   failedDecodedlogs: FailedDecodedLogResult[];
 }
-export const fetchEventInformationByTransactionHash = async (
+export const decodeLogs = async (
   transactionHash: string,
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
-): Promise<DecodedEvents> => {
-  const rootTransactionDetails: TransactionContext = await fetchTransaction(
-    transactionHash,
-    provider,
-  );
+): Promise<DecodedLogs> => {
+  const transaction = await provider.getTransactionReceipt(transactionHash);
+  if (!transaction) {
+    return { decodedLogs: [], failedDecodedlogs: [] };
+  }
   const decodedLogs = [];
   const failedDecodedlogs = [];
-  for (const l of rootTransactionDetails.receipt.logs) {
-    await delay(401);
+  for (const l of transaction.logs) {
     const rootAddress = await getContractBehindProxy(l.address, provider);
     const contractAbi = rootAddress
       ? await fetchContractAbi(rootAddress, chain)
       : await fetchContractAbi(l.address, chain);
     if (contractAbi === '{}') {
-      const err: FailedDecodedLogResult = { 'address': l.address, success: false }
-      failedDecodedlogs.push(err)
-      continue
+      const err: FailedDecodedLogResult = { address: l.address, success: false };
+      failedDecodedlogs.push(err);
+      continue;
     }
     const decodedLog = await decodeLog(l, contractAbi);
     if (decodedLog.success) {
@@ -78,51 +56,11 @@ export const fetchEventInformationByTransactionHash = async (
 
   return { decodedLogs, failedDecodedlogs };
 };
-// export type TransactionNativeType =
-//   | 'nativeTransfer'
-//   | 'directTransfer'
-//   | 'sum'
-//   | 'split'
-//   | 'end'
-//   | 'root'
-//   | 'unknown';
-// export type TransactionContractType =
-//   | 'contractCall'
-//   | 'end'
-//   | 'transfer'
-//   | 'method'
-//   | 'root'
-//   | 'unknown';
-export interface FetchTransactionInformation {
-  context: TransactionContext;
-  decodedEvents: DecodedEvents | null;
-  decodedMethod: DecodedMethodResult | null;
-}
-
-export const fetchTransactionInformation = async (
-  transactionHash: string,
-  provider: ethers.JsonRpcProvider,
-  chain: ChainInfo,
-): Promise<FetchTransactionInformation> => {
-  const cachedTransactionInformation = await getCachedTransactionInformation(
-    transactionHash,
-    chain.chainId,
-  );
-  if (cachedTransactionInformation !== null) {
-    return cachedTransactionInformation;
-  }
-  await delay(100)
-  const context: TransactionContext = await fetchTransaction(transactionHash, provider);
-  let payload: FetchTransactionInformation = { context, decodedMethod: null, decodedEvents: null }
-  if (context.to.type === 'contract') {
-    const decodedMethod = await fetchMethodInformationByTransactionHash(transactionHash, provider, chain);
-    const decodedEvents = await fetchEventInformationByTransactionHash(transactionHash, provider, chain);
-    cacheTransactionInformation(transactionHash, chain.chainId, payload);
-    payload = { context, decodedMethod, decodedEvents };
-  }
-  cacheTransactionInformation(transactionHash, chain.chainId, payload);
-  return payload;
-};
+// export interface FetchTransactionInformation {
+//   context: TransactionContext;
+//   decodedEvents: DecodedLogs | null;
+//   decodedMethod: DecodedMethodResult | null;
+// }
 
 // function sumTransactions(
 //   transactions: FetchNativeTransaction[],
@@ -199,11 +137,11 @@ export const fetchTransactionInformation = async (
 
 // Helper function to find a split of transactions that sum to a target within a variance range
 function findSplitCombination(
-  txs: Array<{ from: string, value: string }>,
+  txs: Array<{ from: string; value: string }>,
   lowerBound: bigint,
   upperBound: bigint,
-  combination: Array<{ from: string, value: string }> = [],
-): Array<{ from: string, value: string }> | null {
+  combination: Array<{ from: string; value: string }> = [],
+): Array<{ from: string; value: string }> | null {
   const currentSum = combination.reduce((acc, tx) => acc + BigInt(tx.value), BigInt(0));
   // Check if current sum is within the range
   if (currentSum >= lowerBound && currentSum <= upperBound) {
@@ -294,7 +232,6 @@ function findSplitCombination(
 //
 // }
 
-
 // export function flattenTransactions(node: TransactionInformationNode): TransactionInformationNode[] {
 //   const { next, ...onlyNode } = node
 //   let transactions: TransactionInformationNode[] = [onlyNode];
@@ -306,73 +243,73 @@ function findSplitCombination(
 //
 //   return transactions;
 // }
-// lets get this path spitting out correctly for native 
-export const fetchTransactionInformationPath = async (
-  startingTransactionHash: string,
-  depth: number,
+// lets get this path spitting out correctly for native
+
+const addressToApiName = {
+  '0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE': 'spooky-token', // Example: SpookyToken (BOO)
+  '0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6': 'equalizer',    // Example: Equalizer (EQUAL)
+  '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83': 'wrapped-fantom', // Example: Wrapped Fantom (WFTM)
+  '0x1B6382DBDEa11d97f24495C9A90b7c88469134a4': 'axelar-usdc',  // Example: Axelar Wrapped USDC (axlUSDC)
+  '0x28a92dde19D9989F39A49905d7C9C2FAc7799bDf': 'usd-coin'     // Example: USD Coin (USDC)
+};
+
+export const fetchAddressContext = async (
+  startBlock: number,
+  endBlock: number,
+  address: string,
+  type: 'root',
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
 ): Promise<any | null> => {
-  const transactionInformation = await fetchTransactionInformation(startingTransactionHash, provider, chain); // determine correct Path to choose here
-  // transactionInformation
-  const startBlock = transactionInformation.context.blockNumber;
-  const endBlock = await getBlockDaysAhead(startBlock, 15, provider);
-
-  console.log(transactionInformation.context.transactionHash, startBlock, endBlock, chain)
-  const transactions = await fetchTransactionForAddress(transactionInformation.context.from.address, startBlock, endBlock, chain)
-  transactions.forEach(t => {
-    console.log(t.hash, t.blockNumber, t.value)
-  })
+  const transactions = await fetchTransactionsForAddress(address, startBlock, endBlock, chain);
+  const tokenTransferContext: { [key: string]: any[] } = {};
+  const nativeTransferContext: any[] = [];
+  const contractTransferContext: { [key: string]: any[] } = {};
   // console.log(transactions)
-  // if (depth === 0) {
-  //   return { ...transactionInformation, exitReason: 'depth-limit-reached' };
-  // }
-  //
-  // const addressInformation = transactionInformation.transactionInformation.transactionContext.to.info
-  // if (addressInformation && addressInformation.type === 'CEX-Specific') {
-  //   console.log(transactionHash, 'is cex')
-  //   return { ...transactionInformation, exitReason: 'CEX-Specific' }
-  // }
-  //
-  // const transactionType = transactionInformation.transactionInformation.transactionType;
-  // if (transactionType === 'nativeTransfer') {
-  //   // console.log({ native: transactionInformation.nativeTransactions })
-  //   // we had a native transfer, lets see what matches we found
-  //   for (const t of transactionInformation.nativeTransactions) {
-  //
-  //     console.log({ nativeTransactions: transactionInformation.nativeTransactions })
-  //     const nativeTransactionType = t.transactionType[
-  //       t.transactionType.length - 1
-  //     ] as TransactionNativeType;
-  //
-  //     if (nativeTransactionType === 'directTransfer') {
-  //       const next = await fetchTransactionInformationPath(
-  //         t.transactionContext.transactionHash,
-  //         depth - 1,
-  //         provider,
-  //         chain,
-  //       );
-  //       return next ? { ...transactionInformation, next } : transactionInformation;
-  //     }
-  //     console.log({ nativeTransactions: transactionInformation.nativeTransactions[0].transactionContext })
-  //   }
-  // }
-  // else if (transactionType === 'contractCall') {
-  //   // we had a native transfer, lets see what matches we found
-  //   for (const t of res.contractTransactions) {
-  //     const contractTransactionType = t.transactionType[
-  //       t.transactionType.length - 1
-  //     ] as TransactionContractType;
-  //     if (contractTransactionType === 'unknown') {
-  //       return res;
-  //     } else if (contractTransactionType === 'transfer') {
-  //       return res; // todo
-  //     } else if (contractTransactionType === 'method') {
-  //       return res; // todo
-  //     }
-  //   }
-  // }
+  for (const t of transactions) {
+    const info = await fetchTransaction(t.hash, provider, chain);
+    if (info.to.type === 'EOA') {
+      nativeTransferContext.push({
+        transactionHash: t.hash,
+        from: t.from,
+        to: t.to,
+        value: t.value,
+        formattedAmount: ethers.formatEther(t.value,),
+      })
+    }
+    if (info.to.type === 'contract' && info.decodedMethod?.methodName === 'transfer') {
+      for (const d of info.decodedLogs?.decodedLogs ?? []) {
+        const from = d.topics[0];
+        const to = d.topics[1];
+        const value = d.data[0];
+        if (from?.name !== 'from' || (to?.name !== 'to' || value.name !== 'value')) {
+          continue; // not a standard erc-20
+        }
 
+        // info.to.tokenInfo?.decimals
+        if (!tokenTransferContext[info.to.address]) {
+          tokenTransferContext[info.to.address] = []
+        }
+        await delay(334)
+        const tokenApiId = await getTokenId(info.to.tokenInfo?.symbol as string)
+        // const tokenPrice = awat getTokenPrice(tokenApiId)
+        // console.log(tokenApiId)
+        tokenTransferContext[info.to.address].push({
+          transactionHash: d.transactionHash,
+          tokenName: info.to.tokenInfo?.name,
+          tokensymbol: info.to.tokenInfo?.symbol,
+          tokenAddress: info.to.address,
+          from: from.value,
+          to: to.value,
+          value: value.value,
+          formattedAmount: ethers.formatUnits(value.value, Number(info.to.tokenInfo?.decimals)),
+        });
+
+      }
+    } else if (info.to.type === 'contract') {
+
+    }
+  };
+  // console.log(nativeTransferContext, tokenTransferContext, contractTransferContext)
   return null;
-};
-
+}

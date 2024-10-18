@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import ethers from 'ethers';
-import { AddressInformation, KnownWalletsMap } from './info';
-import { DecodedEvents } from './data/transactions';
+import { WalletInformation, KnownWalletsMap } from './info';
+import { DecodedLogs } from './data/transactions';
 export const transactionSchema = z.object({
   hash: z.string().length(66, 'Invalid transaction hash'), // Transaction hash
   to: z.string(), // "to" can be null for contract creation transactions
@@ -15,31 +15,33 @@ export const transactionSchema = z.object({
   data: z.string(),
 });
 
-export interface TransactionContextAndNextTransactions extends TransactionContext {
-  nextTransactions: TransactionContextAndNextTransactions[];
+export interface TokenInfo {
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;
+}
+export interface AddressInfo {
+  type: AddressType;
+  address: string;
+  walletInfo: WalletInformation | null;
+  tokenInfo: TokenInfo | null;
 }
 export type AddressType = 'EOA' | 'contract';
-export interface AddressContext {
-  address: string;
-  type: AddressType;
-  info: AddressInformation | null
-}
 export interface TransactionContext {
-  to: AddressContext;
-  from: AddressContext;
+  to: AddressInfo;
+  from: AddressInfo;
   timeStamp: string;
   blockNumber: number;
   ensName?: string; // Optional if ENS is not available
   value: ethers.BigNumberish;
   formattedValue: string;
   transactionHash: string;
-  receipt: ethers.TransactionReceipt;
+  logs: readonly ethers.Log[];
   data: string;
-  decoded?: {
-    events: DecodedEvents;
-    method: DecodedMethodResult | null;
-
-  }
+  decodedLogs: DecodedLogs | null;
+  decodedMethod: DecodedMethod | null;
+  status: number;
 }
 export interface TransactionContextPath extends TransactionContext {
   nextTransactions: TransactionContextPath[];
@@ -95,7 +97,7 @@ export interface AttackedInformation {
 /**
  * Interface for the result of decoding a method.
  */
-export interface DecodedMethodResult {
+export interface DecodedMethod {
   methodName: string;
   params: DecodedParam[];
   selector: string;

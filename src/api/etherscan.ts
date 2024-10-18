@@ -1,6 +1,6 @@
 import { ethers, InterfaceAbi } from 'ethers';
 import { ChainInfo, TransactionContext, TransactionContextPath } from '../types';
-import { delay, } from '../utils';
+import { delay } from '../utils';
 import { cacheAbi, getCachedAbi } from '../dbCalls/abi';
 
 export async function fetchContractAbi(
@@ -10,15 +10,11 @@ export async function fetchContractAbi(
   // First, check the cache with both the contractAddress and chainId
   const cachedAbi = await getCachedAbi(contractAddress, chainInfo.chainId);
   if (cachedAbi) {
-    console.log(
-      `Returning cached ABI for contract ${contractAddress} on chain ${chainInfo.chainId}`,
-    );
     return cachedAbi;
   }
-
+  delay(200);
   // If not in the cache, fetch from the block explorer API
   const url = `${chainInfo.blockExplorerApiUrl}?module=contract&action=getabi&address=${contractAddress}&apikey=${chainInfo.apiKey}`;
-  console.log(url);
   const response = await fetch(url);
   const data = await response.json();
 
@@ -68,9 +64,9 @@ export async function fetchTransactionForAddress(
   startblock: number,
   endBlock: number,
   chainInfo: ChainInfo,
-  limit = 100
+  limit = 100,
 ): Promise<TransactionDetails[]> {
-  await delay(300);
+  await delay(200);
   const url = `${chainInfo.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=${startblock}&endblock=${endBlock}&limit=500&sort=asc&apikey=${chainInfo.apiKey}`;
   const response = await fetch(url);
   const data = await response.json();
@@ -78,6 +74,6 @@ export async function fetchTransactionForAddress(
     throw new Error('Error fetching transactions from Etherscan: ' + data.message);
   }
   let nativeTransactions = data.result as TransactionDetails[];
-  nativeTransactions = nativeTransactions.slice(0, limit)
+  nativeTransactions = nativeTransactions.slice(0, limit);
   return nativeTransactions;
 }

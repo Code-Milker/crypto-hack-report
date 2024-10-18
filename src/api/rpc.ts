@@ -1,13 +1,22 @@
 import { ethers } from 'ethers';
 import {
+  AddressInfo,
   AddressType,
-  DecodedMethodResult as DecodedMethod,
+  ChainInfo,
+  DecodedMethod,
   DecodedParam,
+  TokenInfo,
   TransactionContext,
   transactionSchema,
 } from '../types';
-import { fetchENSName, } from '../utils';
-import { KnownWallets } from '../info';
+import { fetchENSName } from '../utils';
+import { WalletInformation, KnownWallets } from '../info';
+import { DecodedLogs, decodeLogs } from '../data/transactions';
+import { fetchContractAbi } from './etherscan';
+import {
+  cacheTransactionInformation,
+  getCachedTransactionInformation,
+} from '../dbCalls/transaction';
 
 /**
  * Recursively processes input parameters (handles tuples and arrays).
@@ -60,18 +69,27 @@ function processParams(
  */
 export async function decodeMethod(
   transactionHash: string,
-  abi: string,
-  provider: ethers.Provider,
-): Promise<DecodedMethod> {
-  // Fetch the transaction using the transaction hash
+  provider: ethers.JsonRpcProvider,
+  chain: ChainInfo,
+): Promise<DecodedMethod | null> {
   const transaction = await provider.getTransaction(transactionHash);
+  if (!transaction?.to) {
+    return null;
+  }
+  const rootAddress = await getContractBehindProxy(transaction.to, provider);
+  const contractAbi = rootAddress
+    ? await fetchContractAbi(rootAddress, chain)
+    : await fetchContractAbi(transaction.to, chain);
+  if (contractAbi === '{}') {
+    return null;
+  }
 
   if (!transaction || !transaction.data) {
     throw new Error(`Transaction not found or invalid for hash: ${transactionHash}`);
   }
 
   // Create an interface using the ABI
-  const iface = new ethers.Interface(JSON.parse(abi));
+  const iface = new ethers.Interface(JSON.parse(contractAbi));
 
   // Decode the input data from the transaction
   const decodedInput = iface.parseTransaction({ data: transaction.data });
@@ -79,12 +97,12 @@ export async function decodeMethod(
   if (!decodedInput) {
     throw new Error('Unable to decode transaction');
   }
-  console.log(transactionHash)
   const methodName = decodedInput.name; // Get the method name
   const func = iface.getFunction(methodName); // Get the function definition from the ABI
 
   if (!func) {
-    throw new Error(`Function ${methodName} not found in ABI`);
+    console.error(`Function ${methodName} not found in ABI`);
+    return null;
   }
 
   // Decode the function data
@@ -184,7 +202,12 @@ export async function decodeLog(
 export const fetchTransaction = async (
   transactionHash: string,
   provider: ethers.JsonRpcProvider,
+  chain: ChainInfo,
 ): Promise<TransactionContext> => {
+  const cache = await getCachedTransactionInformation(transactionHash, chain.chainId);
+  if (cache !== null) {
+    return cache;
+  }
   // Fetch transaction details
   const transaction = await provider.getTransaction(transactionHash);
 
@@ -209,21 +232,31 @@ export const fetchTransaction = async (
 
   // If the transaction involves ETH, format its value
   const formattedValue = ethers.formatEther(parsedTransaction.value);
-  const toType = await getAddressType(parsedTransaction.to, provider);
-  const fromType = await getAddressType(parsedTransaction.from, provider);
-  const res: TransactionContext = {
+  const to = await getAddressInformation(parsedTransaction.to, provider);
+  const from = await getAddressInformation(parsedTransaction.from, provider);
+  let decodedMethod: DecodedMethod | null = null;
+  let decodedLogs: DecodedLogs | null = null;
+  if (to.type === 'contract') {
+    decodedMethod = await decodeMethod(transactionHash, provider, chain);
+    decodedLogs = await decodeLogs(transactionHash, provider, chain);
+  }
+  const context: TransactionContext = {
     transactionHash,
-    to: { type: toType, address: parsedTransaction.to, info: KnownWallets[parsedTransaction.to] ?? null },
-    from: { type: fromType, address: parsedTransaction.from, info: KnownWallets[parsedTransaction.from] ?? null },
+    to: to,
+    from: from,
     timeStamp,
     blockNumber: parsedTransaction.blockNumber ?? -1,
     ensName,
     value: parsedTransaction.value.toString(),
     formattedValue: formattedValue,
-    receipt: receipt,
+    logs: receipt.logs,
+    status: receipt.status ?? 0,
     data: parsedTransaction.data,
+    decodedMethod,
+    decodedLogs,
   };
-  return res;
+  cacheTransactionInformation(transactionHash, chain.chainId, context);
+  return context;
 };
 
 /**
@@ -308,24 +341,45 @@ export async function getTokenTransactionsFromAddressAfterBlock(
   // Return only the first 'limit' transactions
   return transactions.slice(0, limit);
 }
-export const getAddressType = async (
+export const getAddressInformation = async (
   address: string,
   provider: ethers.JsonRpcProvider,
-): Promise<AddressType> => {
-  return (await provider.getCode(address)) !== '0x' ? 'contract' : 'EOA';
+): Promise<AddressInfo> => {
+  const type: AddressType = (await provider.getCode(address)) !== '0x' ? 'contract' : 'EOA';
+  let tokenInfo = null;
+  const walletInfo = KnownWallets[address] ?? null;
+  if (type === 'contract') {
+    tokenInfo = await getTokenInfo(address, provider);
+  }
+  return { type, address, walletInfo, tokenInfo };
 };
-
-export const getTokenName = (
+export const getTokenInfo = async (
   tokenAddress: string,
   provider: ethers.JsonRpcProvider,
-): Promise<string> => {
+): Promise<TokenInfo | null> => {
   const contract = new ethers.Contract(
     tokenAddress,
-    ['function name() view returns (string)'],
+    [
+      'function name() view returns (string)',
+      'function symbol() view returns (string)',
+      'function decimals() view returns (uint8)',
+      'function totalSupply() view returns (uint256)',
+    ],
     provider,
-  )
-  console.log(contract)
-  return contract.name();
+  );
+
+  try {
+    const [name, symbol, decimals, totalSupply] = await Promise.all([
+      contract.name(),
+      contract.symbol(),
+      contract.decimals(),
+      contract.totalSupply(),
+    ]);
+
+    return { name, symbol, decimals, totalSupply: totalSupply.toString() };
+  } catch (error) {
+    return null;
+  }
 };
 
 export const fetchBlockTimestamp = async (
@@ -357,7 +411,9 @@ export async function getAverageBlockTime(provider: ethers.JsonRpcProvider): Pro
     }
 
     // Calculate the block time in seconds
-    const blockTime = (latestBlock.timestamp - previousBlock.timestamp) / (latestBlock.number - previousBlock.number);
+    const blockTime =
+      (latestBlock.timestamp - previousBlock.timestamp) /
+      (latestBlock.number - previousBlock.number);
 
     return blockTime;
   } catch (error) {
@@ -369,7 +425,7 @@ export async function getBlocksPerDay(provider: ethers.JsonRpcProvider): Promise
   try {
     const averageBlockTime = await getAverageBlockTime(provider);
     // Calculate blocks per day based on average block time
-    console.log({ averageBlockTime })
+    console.log({ averageBlockTime });
     const blocksPerDay = 86400 / averageBlockTime;
     return Math.round(blocksPerDay);
   } catch (error) {
@@ -378,7 +434,11 @@ export async function getBlocksPerDay(provider: ethers.JsonRpcProvider): Promise
   }
 }
 
-export async function getBlockDaysAhead(startBlock: number, days: number, provider: ethers.JsonRpcProvider) {
+export async function getBlockDaysAhead(
+  startBlock: number,
+  days: number,
+  provider: ethers.JsonRpcProvider,
+) {
   const blocksPerDay = await getBlocksPerDay(provider);
   const blocksInWeek = blocksPerDay * (days * 1.2);
   // Calculate the block number one week ahead

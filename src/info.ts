@@ -15,7 +15,7 @@ interface UrlLink {
   description: string;
 }
 export type WalletType = 'Self-Custody' | 'CEX-Specific' | 'Other' | 'Mixer' | 'Unknown' | 'Victim';
-export interface AddressInformation {
+export interface WalletInformation {
   alias: string;
   type: WalletType;
   chainIds: string[];
@@ -24,7 +24,7 @@ export interface AddressInformation {
 }
 
 export interface KnownWalletsMap {
-  [address: string]: AddressInformation;
+  [address: string]: WalletInformation;
 }
 
 export const KnownWallets: KnownWalletsMap = {

@@ -1,6 +1,8 @@
 import { ethers } from 'ethers';
 import { generateRootAttackInformation } from '../data/attackInformation';
-import { fetchTransactionInformation, fetchTransactionInformationPath, } from '../data/transactions';
+import { fetchAddressContext } from '../data/transactions';
+import { chainInfoMap } from '../info';
+import { fetchTransaction, getBlockDaysAhead } from '../api/rpc';
 
 const run = async () => {
   const attackInformation = await generateRootAttackInformation();
@@ -15,18 +17,22 @@ const run = async () => {
               transactionHash ===
               '0xcee4da0e7bdbb3112b2cd249b459d92c1afc23047db545c33ee60532773736d9'
             ) {
-              const transactionInformation = await fetchTransactionInformationPath(
-                '0xcee4da0e7bdbb3112b2cd249b459d92c1afc23047db545c33ee60532773736d9',
-                2,
+              const transactionInformation = await fetchTransaction(
+                transactionHash,
+                provider,
+                chain.chainInfo,
+              ); // determine correct Path to choose here
+              const startBlock = transactionInformation.blockNumber;
+              const endBlock = await getBlockDaysAhead(startBlock, 15, provider);
+              const address = transactionInformation.from.address;
+              await fetchAddressContext(
+                startBlock,
+                endBlock,
+                address,
+                'root',
                 provider,
                 chain.chainInfo,
               );
-              if (transactionInformation) {
-                const { next } = transactionInformation
-              } else {
-
-              }
-
             }
           } catch (e) {
             console.log(e);

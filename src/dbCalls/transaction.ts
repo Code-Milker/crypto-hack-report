@@ -1,8 +1,8 @@
 import jsonfile from 'jsonfile';
 import { checkFileExists } from './dbUtils';
-import { stringifyBigInt } from '../utils';
-import { FetchTransactionInformation, } from '../data/transactions';
-const cacheDb = 'db/cache/transaction.json';
+import { delay, stringifyBigInt } from '../utils';
+import { TransactionContext } from '../types';
+const dbFileName = 'db/cache/transaction.json';
 
 /**
  * Cache ABI, decoded method, or decoded event based on transaction hash.
@@ -13,13 +13,13 @@ const cacheDb = 'db/cache/transaction.json';
 export async function cacheTransactionInformation(
   transactionHash: string,
   chainId: number,
-  value: any,
+  value: TransactionContext,
 ) {
-  const fileExists = await checkFileExists(cacheDb);
-  let db: any = fileExists ? await jsonfile.readFile(cacheDb) : {};
+  const fileExists = await checkFileExists(dbFileName);
+  let db: any = fileExists ? await jsonfile.readFile(dbFileName) : {};
   const cacheKey = `${transactionHash}_${chainId}`; // Composite key based on transaction hash and chainId
-  db[cacheKey] = stringifyBigInt(value);
-  await jsonfile.writeFile(cacheDb, db, { spaces: 2 });
+  db[cacheKey] = JSON.parse(stringifyBigInt(value));
+  await jsonfile.writeFile(dbFileName, db, { spaces: 2 });
 }
 
 /**
@@ -32,18 +32,16 @@ export async function cacheTransactionInformation(
 export async function getCachedTransactionInformation(
   transactionHash: string,
   chainId: number,
-): Promise<FetchTransactionInformation | null> {
-  const fileExists = await checkFileExists(cacheDb);
+): Promise<TransactionContext | null> {
+  const fileExists = await checkFileExists(dbFileName);
 
   if (!fileExists) {
-    throw Error(cacheDb + ' does not exist');
+    throw Error(dbFileName + ' does not exist');
   }
-
-  const db = await jsonfile.readFile(cacheDb);
+  const db = (await jsonfile.readFile(dbFileName)) ?? {};
   const cacheKey = `${transactionHash}_${chainId}`; // Composite key based on transaction hash and chainId
   if (!db[cacheKey]) {
     return null;
   }
-
-  return JSON.parse(db[cacheKey]) || null;
+  return db[cacheKey] || null;
 }
