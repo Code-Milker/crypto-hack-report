@@ -296,8 +296,10 @@ export const fetchAddressContext = async (
           return null
         }
         const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain)
+
+        const formattedAmount = ethers.formatUnits(value.value, Number(info.to.tokenInfo?.decimals))
         tokenTransferContext[info.to.address].push({
-          tokenPriceUSD: tokenPrice,
+          tokenPriceUSD: { ...tokenPrice, value: Number(tokenPrice.usd) * Number(formattedAmount) },
           transactionHash: d.transactionHash,
           tokenName: info.to.tokenInfo?.name,
           tokensymbol: info.to.tokenInfo?.symbol,
@@ -305,7 +307,7 @@ export const fetchAddressContext = async (
           from: from.value,
           to: to.value,
           value: value.value,
-          formattedAmount: ethers.formatUnits(value.value, Number(info.to.tokenInfo?.decimals)),
+          formattedAmount,
         });
 
       }
@@ -314,7 +316,6 @@ export const fetchAddressContext = async (
     }
   };
   // console.log(nativeTransferContext, tokenTransferContext, contractTransferContext)
-  console.log(nativeTransferContext, tokenTransferContext)
   Object.keys(tokenTransferContext).forEach(element => {
     console.log(tokenTransferContext[element])
 
