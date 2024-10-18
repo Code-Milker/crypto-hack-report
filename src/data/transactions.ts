@@ -20,7 +20,7 @@ import {
 } from '../dbCalls/transaction';
 import { KnownWallets } from '../info';
 import { values } from 'lodash';
-import { getTokenId } from '../api/coinGecko';
+import { fetchTokenCoinGeckoData, getTokenId } from '../api/coinGecko';
 export interface DecodedLogs {
   decodedLogs: DecodedLogResult[];
   failedDecodedlogs: FailedDecodedLogResult[];
@@ -292,9 +292,12 @@ export const fetchAddressContext = async (
         }
         await delay(334)
         const tokenApiId = await getTokenId(info.to.tokenInfo?.symbol as string)
-        // const tokenPrice = awat getTokenPrice(tokenApiId)
-        // console.log(tokenApiId)
+        if (!tokenApiId) {
+          return null
+        }
+        const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain)
         tokenTransferContext[info.to.address].push({
+          tokenPriceUSD: tokenPrice,
           transactionHash: d.transactionHash,
           tokenName: info.to.tokenInfo?.name,
           tokensymbol: info.to.tokenInfo?.symbol,
@@ -311,5 +314,10 @@ export const fetchAddressContext = async (
     }
   };
   // console.log(nativeTransferContext, tokenTransferContext, contractTransferContext)
+  console.log(nativeTransferContext, tokenTransferContext)
+  Object.keys(tokenTransferContext).forEach(element => {
+    console.log(tokenTransferContext[element])
+
+  });
   return null;
 }

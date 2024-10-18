@@ -47,7 +47,6 @@ export const getTokenId = async (symbol: string) => {
     }
 
     const id = await getCachedCoinGeckoTokenDetailsId(symbol)
-    console.log({ id })
     if (id) {
       if (tokens) {
         const token = tokens.find(t => t.id === id)
@@ -69,21 +68,15 @@ export const getTokenId = async (symbol: string) => {
 };
 
 // Function to get the price of a token
-// export const getTokenPrice = async (symbol: string) => {
+// export const getTokenPrice = async (id: string) => {
 //   try {
-//     const tokenId = await getTokenId(symbol);
-//     if (tokenPriceCache.has(tokenId)) {
-//       return tokenPriceCache.get(tokenId);
-//     }
-//
 //     const response = await fetch(
-//       `https://api.coingecko.com/api/v3/simple/price?ids=${tokenId}&vs_currencies=usd`
+//       `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`
 //     );
 //     const data = await response.json();
 //
-//     if (data[tokenId]) {
-//       const price = data[tokenId].usd;
-//       tokenPriceCache.set(tokenId, price);
+//     if (data[id]) {
+//       const price = data[id].usd;
 //       return price;
 //     } else {
 //       throw new Error(`Price not found for token ID: ${tokenId}`);
@@ -99,8 +92,6 @@ const getTokenDetails = async (coinId: string) => {
     console.log(tokenDetails)
 
     if (tokenDetails?.id) {
-      console.log('fetching')
-      console.log(tokenDetails)
       return tokenDetails
     }
     await delay(2000)
