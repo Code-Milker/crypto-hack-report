@@ -24,11 +24,6 @@ import { KnownWallets } from '../info';
 import { values } from 'lodash';
 import { fetchTokenCoinGeckoData, getTokenId } from '../api/coinGecko';
 import { TokenPriceUSD } from '../dbCalls/coinGeckoData';
-// export interface FetchTransactionInformation {
-//   context: TransactionContext;
-//   decodedEvents: DecodedLogs | null;
-//   decodedMethod: DecodedMethodResult | null;
-// }
 
 // function sumTransactions(
 //   transactions: FetchNativeTransaction[],
@@ -400,6 +395,7 @@ export const fetchAddressContext = async (
       outUSD: number,
       out: number,
       tokenName: string
+      transactions: (TokenTransaction | NativeTransaction)[]
     }
   } = {}
   // {
@@ -408,49 +404,54 @@ export const fetchAddressContext = async (
   //     outUSD: 0,
   //     amountOut: 0
   //   }
-  for (const native of nativeTransferContext) {
+  for (const transfer of nativeTransferContext) {
     if (!moneyFlow['native']) {
       moneyFlow['native'] = {
         inUSD: 0,
         in: 0,
         outUSD: 0,
         out: 0,
-        tokenName: 'native'
+        tokenName: 'native',
+        transactions: []
       }
     }
 
-    if (native.to.toLowerCase() === address.toLowerCase()) { // incoming
-      moneyFlow['native'].inUSD = moneyFlow['native'].inUSD + (native.tokenPriceUSD.AmountInUSD ?? 0)
-      moneyFlow['native'].in = moneyFlow['native'].in + Number((native.formattedAmount ?? 0))
+    if (transfer.to.toLowerCase() === address.toLowerCase()) { // incoming
+      moneyFlow['native'].inUSD = moneyFlow['native'].inUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+      moneyFlow['native'].in = moneyFlow['native'].in + Number((transfer.formattedAmount ?? 0))
     }
-    if (native.from.toLowerCase() === address.toLowerCase()) { // outgoing
-      moneyFlow['native'].outUSD = moneyFlow['native'].outUSD + (native.tokenPriceUSD.AmountInUSD ?? 0)
-      moneyFlow['native'].out = moneyFlow['native'].out + Number((native.formattedAmount ?? 0))
+    if (transfer.from.toLowerCase() === address.toLowerCase()) { // outgoing
+      moneyFlow['native'].outUSD = moneyFlow['native'].outUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+      moneyFlow['native'].out = moneyFlow['native'].out + Number((transfer.formattedAmount ?? 0))
+
+      moneyFlow['native'].transactions.push(transfer)
     }
     // console.log(native);
   }
   for (const contractAddress of Object.keys(contractTransferContext)) {
-    if (!moneyFlow[contractAddress]) {
-      moneyFlow[contractAddress] = {
-        inUSD: 0,
-        in: 0,
-        outUSD: 0,
-        out: 0, tokenName: ''
-
-      }
-    }
     for (const hash of Object.keys(contractTransferContext[contractAddress])) {
-      for (const log of (contractTransferContext[contractAddress][hash].contractLogs)) {
-        moneyFlow[contractAddress].tokenName = log.tokenName ?? ''
-
-        if (log.to === address) { // sent in
-          moneyFlow[contractAddress].inUSD = moneyFlow[contractAddress].inUSD + (log.tokenPriceUSD.AmountInUSD ?? 0)
-          moneyFlow[contractAddress].in = moneyFlow[contractAddress].in + Number((log.formattedAmount ?? 0))
+      for (const transfer of (contractTransferContext[contractAddress][hash].contractLogs)) {
+        if (!moneyFlow[transfer.tokenAddress]) {
+          moneyFlow[transfer.tokenAddress] = {
+            inUSD: 0,
+            in: 0,
+            outUSD: 0,
+            out: 0,
+            tokenName: transfer.tokenName as string,
+            transactions: []
+          }
         }
-        if (log.from === address) { // sent out
+        if (transfer.to === address) { // sent in
+          moneyFlow[transfer.tokenAddress].inUSD = moneyFlow[transfer.tokenAddress].inUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[transfer.tokenAddress].in = moneyFlow[transfer.tokenAddress].in + Number((transfer.formattedAmount ?? 0))
+          moneyFlow[transfer.tokenAddress].transactions.push(transfer)
+        }
+        if (transfer.from === address) { // sent out
 
-          moneyFlow[contractAddress].outUSD = moneyFlow[contractAddress].outUSD + (log.tokenPriceUSD.AmountInUSD ?? 0)
-          moneyFlow[contractAddress].out = moneyFlow[contractAddress].out + Number((log.formattedAmount ?? 0))
+          moneyFlow[transfer.tokenAddress].outUSD = moneyFlow[transfer.tokenAddress].outUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[transfer.tokenAddress].out = moneyFlow[transfer.tokenAddress].out + Number((transfer.formattedAmount ?? 0))
+          moneyFlow[transfer.tokenAddress].tokenName = transfer.tokenName as string
+          moneyFlow[transfer.tokenAddress].transactions.push(transfer)
         }
       }
       // contractTransferContext[hash]
@@ -470,19 +471,22 @@ export const fetchAddressContext = async (
         in: 0,
         outUSD: 0,
         out: 0,
-        tokenName: ''
+        tokenName: '',
+        transactions: []
       }
     }
     for (const hash of Object.keys(tokenTransferContext[tokenAddress])) {
-      for (const t of tokenTransferContext[tokenAddress][hash]) {
-        if (t.to === address) { // sent in
-          moneyFlow[tokenAddress].inUSD = moneyFlow[tokenAddress].inUSD + (t.tokenPriceUSD.AmountInUSD ?? 0)
-          moneyFlow[tokenAddress].in = moneyFlow[tokenAddress].in + Number((t.formattedAmount ?? 0))
+      for (const transfer of tokenTransferContext[tokenAddress][hash]) {
+        if (transfer.to === address) { // sent in
+          moneyFlow[tokenAddress].inUSD = moneyFlow[tokenAddress].inUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[tokenAddress].in = moneyFlow[tokenAddress].in + Number((transfer.formattedAmount ?? 0))
+          moneyFlow[tokenAddress].transactions.push(transfer)
         }
-        if (t.from === address) { // sent out
-
-          moneyFlow[tokenAddress].outUSD = moneyFlow[tokenAddress].outUSD + (t.tokenPriceUSD.AmountInUSD ?? 0)
-          moneyFlow[tokenAddress].out = moneyFlow[tokenAddress].out + Number((t.formattedAmount ?? 0))
+        if (transfer.from === address) { // sent out
+          moneyFlow[tokenAddress].outUSD = moneyFlow[tokenAddress].outUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[tokenAddress].out = moneyFlow[tokenAddress].out + Number((transfer.formattedAmount ?? 0))
+          moneyFlow[tokenAddress].tokenName = transfer.tokenName as string
+          moneyFlow[tokenAddress].transactions.push(transfer)
         }
       }
 
@@ -498,7 +502,9 @@ export const fetchAddressContext = async (
     }
 
   }
-  console.log(moneyFlow)
 
+
+
+  console.log(moneyFlow['0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6'])
   return addressContext;
 };
