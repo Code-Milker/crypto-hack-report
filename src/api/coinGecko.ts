@@ -35,30 +35,32 @@ export async function fetchTokenCoinGeckoData(
 }
 export const getTokenId = async (symbol: string) => {
   try {
-    let tokens = await getCachedCoinGeckoApiNames()
+    let tokens = await getCachedCoinGeckoApiNames();
     if (!tokens?.length) {
-      await delay(2000)
+      await delay(2000);
       const response = await fetch(`https://api.coingecko.com/api/v3/coins/list`);
       tokens = await response.json();
-      await cacheCoinGeckoApiNames(tokens)
+      await cacheCoinGeckoApiNames(tokens);
     }
     if (tokens === null) {
       return null;
     }
 
-    const id = await getCachedCoinGeckoTokenDetailsId(symbol)
+    const id = await getCachedCoinGeckoTokenDetailsId(symbol);
     if (id) {
       if (tokens) {
-        const token = tokens.find(t => t.id === id)
-        return token ?? null
+        const token = tokens.find((t) => t.id === id);
+        return token ?? null;
       }
     }
-    const tokensWithSameSymbol = tokens.filter((token: any) => token.symbol.toLowerCase() === symbol.toLowerCase())
+    const tokensWithSameSymbol = tokens.filter(
+      (token: any) => token.symbol.toLowerCase() === symbol.toLowerCase(),
+    );
     for (const t of tokensWithSameSymbol) {
-      const details = (await getTokenDetails(t.id)) as { id: string }
+      const details = (await getTokenDetails(t.id)) as { id: string };
 
       if (details) {
-        await cacheCoinGeckoTokenDetailsId(symbol, t.id as string)
+        await cacheCoinGeckoTokenDetailsId(symbol, t.id as string);
       }
     }
   } catch (error) {
@@ -88,20 +90,20 @@ export const getTokenId = async (symbol: string) => {
 // };
 const getTokenDetails = async (coinId: string) => {
   try {
-    const tokenDetails = await getCachedCoinGeckoTokenDetails(coinId)
-    console.log(tokenDetails)
+    const tokenDetails = await getCachedCoinGeckoTokenDetails(coinId);
+    console.log(tokenDetails);
 
     if (tokenDetails?.id) {
-      return tokenDetails
+      return tokenDetails;
     }
-    await delay(2000)
+    await delay(2000);
     const response = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}`);
     const data = await response.json();
     if (data?.id === coinId) {
-      await cacheCoinGeckoTokenDetails(coinId, data)
+      await cacheCoinGeckoTokenDetails(coinId, data);
       return data;
     }
-    return null
+    return null;
   } catch (error) {
     console.error('Error fetching token details:', error);
   }

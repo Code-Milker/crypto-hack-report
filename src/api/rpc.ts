@@ -11,7 +11,6 @@ import {
 } from '../types';
 import { fetchENSName } from '../utils';
 import { WalletInformation, KnownWallets } from '../info';
-import { DecodedLogs, decodeLogs } from '../data/transactions';
 import { fetchContractAbi } from './etherscan';
 import {
   cacheTransactionInformation,
@@ -445,3 +444,39 @@ export async function getBlockDaysAhead(
   const endBlock = startBlock + blocksInWeek;
   return endBlock;
 }
+
+export interface DecodedLogs {
+  decodedLogs: DecodedLogResult[];
+  failedDecodedlogs: FailedDecodedLogResult[];
+}
+export const decodeLogs = async (
+  transactionHash: string,
+  provider: ethers.JsonRpcProvider,
+  chain: ChainInfo,
+): Promise<DecodedLogs> => {
+  const transaction = await provider.getTransactionReceipt(transactionHash);
+  if (!transaction) {
+    return { decodedLogs: [], failedDecodedlogs: [] };
+  }
+  const decodedLogs = [];
+  const failedDecodedlogs = [];
+  for (const l of transaction.logs) {
+    const rootAddress = await getContractBehindProxy(l.address, provider);
+    const contractAbi = rootAddress
+      ? await fetchContractAbi(rootAddress, chain)
+      : await fetchContractAbi(l.address, chain);
+    if (contractAbi === '{}') {
+      const err: FailedDecodedLogResult = { address: l.address, success: false };
+      failedDecodedlogs.push(err);
+      continue;
+    }
+    const decodedLog = await decodeLog(l, contractAbi);
+    if (decodedLog.success) {
+      decodedLogs.push(decodedLog);
+    } else {
+      failedDecodedlogs.push(decodedLog);
+    }
+  }
+
+  return { decodedLogs, failedDecodedlogs };
+};

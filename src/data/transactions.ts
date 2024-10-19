@@ -13,6 +13,8 @@ import {
   DecodedLogResult,
   FailedDecodedLogResult,
   getBlockDaysAhead,
+  getAddressInformation,
+  DecodedLogs,
 } from '../api/rpc';
 import {
   cacheTransactionInformation,
@@ -21,41 +23,7 @@ import {
 import { KnownWallets } from '../info';
 import { values } from 'lodash';
 import { fetchTokenCoinGeckoData, getTokenId } from '../api/coinGecko';
-export interface DecodedLogs {
-  decodedLogs: DecodedLogResult[];
-  failedDecodedlogs: FailedDecodedLogResult[];
-}
-export const decodeLogs = async (
-  transactionHash: string,
-  provider: ethers.JsonRpcProvider,
-  chain: ChainInfo,
-): Promise<DecodedLogs> => {
-  const transaction = await provider.getTransactionReceipt(transactionHash);
-  if (!transaction) {
-    return { decodedLogs: [], failedDecodedlogs: [] };
-  }
-  const decodedLogs = [];
-  const failedDecodedlogs = [];
-  for (const l of transaction.logs) {
-    const rootAddress = await getContractBehindProxy(l.address, provider);
-    const contractAbi = rootAddress
-      ? await fetchContractAbi(rootAddress, chain)
-      : await fetchContractAbi(l.address, chain);
-    if (contractAbi === '{}') {
-      const err: FailedDecodedLogResult = { address: l.address, success: false };
-      failedDecodedlogs.push(err);
-      continue;
-    }
-    const decodedLog = await decodeLog(l, contractAbi);
-    if (decodedLog.success) {
-      decodedLogs.push(decodedLog);
-    } else {
-      failedDecodedlogs.push(decodedLog);
-    }
-  }
-
-  return { decodedLogs, failedDecodedlogs };
-};
+import { TokenPriceUSD } from '../dbCalls/coinGeckoData';
 // export interface FetchTransactionInformation {
 //   context: TransactionContext;
 //   decodedEvents: DecodedLogs | null;
@@ -247,78 +215,290 @@ function findSplitCombination(
 
 const addressToApiName = {
   '0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE': 'spooky-token', // Example: SpookyToken (BOO)
-  '0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6': 'equalizer',    // Example: Equalizer (EQUAL)
+  '0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6': 'equalizer', // Example: Equalizer (EQUAL)
   '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83': 'wrapped-fantom', // Example: Wrapped Fantom (WFTM)
-  '0x1B6382DBDEa11d97f24495C9A90b7c88469134a4': 'axelar-usdc',  // Example: Axelar Wrapped USDC (axlUSDC)
-  '0x28a92dde19D9989F39A49905d7C9C2FAc7799bDf': 'usd-coin'     // Example: USD Coin (USDC)
+  '0x1B6382DBDEa11d97f24495C9A90b7c88469134a4': 'axelar-usdc', // Example: Axelar Wrapped USDC (axlUSDC)
+  '0x28a92dde19D9989F39A49905d7C9C2FAc7799bDf': 'usd-coin', // Example: USD Coin (USDC)
 };
 
+interface NativeTransaction {
+  transactionHash: string;
+  from: string;
+  to: string;
+  value: string; // The raw value as a string
+  formattedAmount: string; // The value formatted using ethers.formatEther
+  tokenPriceUSD: TokenPriceUSD;
+}
+interface TokenTransaction {
+  transactionHash: string;
+  tokenPriceUSD: TokenPriceUSD;
+  tokenName?: string; // Optional if info.to.tokenInfo?.name is undefined
+  tokenSymbol?: string; // Optional if info.to.tokenInfo?.symbol is undefined
+  tokenAddress: string;
+  from: string;
+  to: string;
+  value: string; // The raw value as a string
+  formattedAmount: string;
+  log?: DecodedLogResult;
+}
+const isTransfer = (l: DecodedLogResult) => {
+  const from = l.topics[0];
+  const to = l.topics[1];
+  const value = l.data[0];
+  return !(from?.name !== 'from' || to?.name !== 'to' || value.name !== 'value')
+    ? { from, to, value }
+    : null;
+};
+interface AddressTransactionContext {
+  tokenTransferContext: { [tokenAddress: string]: { [hash: string]: TokenTransaction[] } };
+  nativeTransferContext: NativeTransaction[];
+  contractTransferContext: { [tokenAddress: string]: { [hash: string]: { contractLogs: TokenTransaction[], methodName: string } } };
+  children: AddressTransactionContext[];
+}
 export const fetchAddressContext = async (
   startBlock: number,
   endBlock: number,
   address: string,
-  type: 'root',
   provider: ethers.JsonRpcProvider,
   chain: ChainInfo,
-): Promise<any | null> => {
+): Promise<AddressTransactionContext> => {
   const transactions = await fetchTransactionsForAddress(address, startBlock, endBlock, chain);
-  const tokenTransferContext: { [key: string]: any[] } = {};
-  const nativeTransferContext: any[] = [];
-  const contractTransferContext: { [key: string]: any[] } = {};
-  // console.log(transactions)
+  const tokenTransferContext: {
+    [key: string]: { [key: string]: TokenTransaction[] }
+  } = {};
+  const nativeTransferContext: NativeTransaction[] = [];
+  const contractTransferContext: { [key: string]: { [key: string]: { contractLogs: TokenTransaction[], methodName: string } } } = {};
   for (const t of transactions) {
     const info = await fetchTransaction(t.hash, provider, chain);
     if (info.to.type === 'EOA') {
+      const tokenApiId = await getTokenId(chain.nativeCurrency.symbol.toLowerCase());
+      if (!tokenApiId) {
+        continue;
+      }
+      const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
       nativeTransferContext.push({
         transactionHash: t.hash,
         from: t.from,
         to: t.to,
         value: t.value,
-        formattedAmount: ethers.formatEther(t.value,),
-      })
+        formattedAmount: ethers.formatEther(t.value),
+        tokenPriceUSD: {
+          ...tokenPrice,
+          AmountInUSD: Number(tokenPrice.usd) * Number(ethers.formatEther(t.value)),
+        },
+      });
     }
+
     if (info.to.type === 'contract' && info.decodedMethod?.methodName === 'transfer') {
       for (const d of info.decodedLogs?.decodedLogs ?? []) {
         const from = d.topics[0];
         const to = d.topics[1];
         const value = d.data[0];
-        if (from?.name !== 'from' || (to?.name !== 'to' || value.name !== 'value')) {
+        if (from?.name !== 'from' || to?.name !== 'to' || value.name !== 'value') {
           continue; // not a standard erc-20
         }
 
-        // info.to.tokenInfo?.decimals
         if (!tokenTransferContext[info.to.address]) {
-          tokenTransferContext[info.to.address] = []
+          tokenTransferContext[info.to.address] = {
+          }
         }
-        await delay(334)
-        const tokenApiId = await getTokenId(info.to.tokenInfo?.symbol as string)
-        if (!tokenApiId) {
-          return null
-        }
-        const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain)
 
-        const formattedAmount = ethers.formatUnits(value.value, Number(info.to.tokenInfo?.decimals))
-        tokenTransferContext[info.to.address].push({
-          tokenPriceUSD: { ...tokenPrice, value: Number(tokenPrice.usd) * Number(formattedAmount) },
+        if (!tokenTransferContext[info.to.address][d.transactionHash]) {
+          tokenTransferContext[info.to.address][d.transactionHash] = []
+        }
+
+        const tokenApiId = await getTokenId(info.to.tokenInfo?.symbol as string);
+        if (!tokenApiId) {
+          continue;
+        }
+        const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
+        const formattedAmount = ethers.formatUnits(
+          value.value,
+          Number(info.to.tokenInfo?.decimals),
+        );
+        tokenTransferContext[info.to.address][d.transactionHash].push({
+          tokenPriceUSD: {
+            ...tokenPrice,
+            AmountInUSD: Number(tokenPrice.usd) * Number(formattedAmount),
+          },
           transactionHash: d.transactionHash,
           tokenName: info.to.tokenInfo?.name,
-          tokensymbol: info.to.tokenInfo?.symbol,
+          tokenSymbol: info.to.tokenInfo?.symbol,
           tokenAddress: info.to.address,
           from: from.value,
           to: to.value,
           value: value.value,
           formattedAmount,
+          log: d
         });
-
       }
     } else if (info.to.type === 'contract') {
+      if (!info.decodedLogs?.decodedLogs) {
+        continue;
+      }
 
+      const contractLogs = []
+      for (const l of info.decodedLogs.decodedLogs) {
+        const transfer = isTransfer(l);
+        if (!transfer) {
+          continue;
+        }
+        if (transfer.to.value !== info.from.address && transfer.from.value !== info.from.address) {
+          continue;
+        }
+
+        const addressInfo = await getAddressInformation(l.address, provider);
+
+        if (!addressInfo.tokenInfo?.symbol) {
+          continue;
+        }
+        const tokenApiId = await getTokenId(addressInfo.tokenInfo?.symbol);
+        if (!tokenApiId) {
+          continue;
+        }
+        const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
+        const formattedAmount = ethers.formatUnits(
+          transfer.value.value,
+          Number(addressInfo.tokenInfo?.decimals),
+        );
+        contractLogs.push({
+          log: l,
+          tokenPriceUSD: {
+            ...tokenPrice,
+            AmountInUSD: Number(tokenPrice.usd) * Number(formattedAmount),
+          },
+          transactionHash: l.transactionHash,
+          tokenName: addressInfo.tokenInfo?.name,
+          tokenSymbol: addressInfo.tokenInfo?.symbol,
+          tokenAddress: addressInfo.address,
+          from: transfer.from.value,
+          to: transfer.to.value,
+          value: transfer.value.value,
+          formattedAmount,
+        });
+      }
+      if (!contractTransferContext[info.to.address]) {
+        contractTransferContext[info.to.address] = {}
+      }
+
+
+      contractTransferContext[info.to.address][info.transactionHash] = { contractLogs, methodName: info.decodedMethod?.methodName as string, }
     }
-  };
-  // console.log(nativeTransferContext, tokenTransferContext, contractTransferContext)
-  Object.keys(tokenTransferContext).forEach(element => {
-    console.log(tokenTransferContext[element])
+  }
 
-  });
-  return null;
-}
+  let addressContext: AddressTransactionContext = {
+    tokenTransferContext,
+    nativeTransferContext,
+    contractTransferContext,
+    children: [],
+  };
+
+  const moneyFlow: {
+    [tokenAddress: string]: {
+      inUSD: number,
+      in: number,
+      outUSD: number,
+      out: number,
+      tokenName: string
+    }
+  } = {}
+  // {
+  //     inUSD: 0,
+  //     amountin: 0,
+  //     outUSD: 0,
+  //     amountOut: 0
+  //   }
+  for (const native of nativeTransferContext) {
+    if (!moneyFlow['native']) {
+      moneyFlow['native'] = {
+        inUSD: 0,
+        in: 0,
+        outUSD: 0,
+        out: 0,
+        tokenName: 'native'
+      }
+    }
+
+    if (native.to.toLowerCase() === address.toLowerCase()) { // incoming
+      moneyFlow['native'].inUSD = moneyFlow['native'].inUSD + (native.tokenPriceUSD.AmountInUSD ?? 0)
+      moneyFlow['native'].in = moneyFlow['native'].in + Number((native.formattedAmount ?? 0))
+    }
+    if (native.from.toLowerCase() === address.toLowerCase()) { // outgoing
+      moneyFlow['native'].outUSD = moneyFlow['native'].outUSD + (native.tokenPriceUSD.AmountInUSD ?? 0)
+      moneyFlow['native'].out = moneyFlow['native'].out + Number((native.formattedAmount ?? 0))
+    }
+    // console.log(native);
+  }
+  for (const contractAddress of Object.keys(contractTransferContext)) {
+    if (!moneyFlow[contractAddress]) {
+      moneyFlow[contractAddress] = {
+        inUSD: 0,
+        in: 0,
+        outUSD: 0,
+        out: 0, tokenName: ''
+
+      }
+    }
+    for (const hash of Object.keys(contractTransferContext[contractAddress])) {
+      for (const log of (contractTransferContext[contractAddress][hash].contractLogs)) {
+        moneyFlow[contractAddress].tokenName = log.tokenName ?? ''
+
+        if (log.to === address) { // sent in
+          moneyFlow[contractAddress].inUSD = moneyFlow[contractAddress].inUSD + (log.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[contractAddress].in = moneyFlow[contractAddress].in + Number((log.formattedAmount ?? 0))
+        }
+        if (log.from === address) { // sent out
+
+          moneyFlow[contractAddress].outUSD = moneyFlow[contractAddress].outUSD + (log.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[contractAddress].out = moneyFlow[contractAddress].out + Number((log.formattedAmount ?? 0))
+        }
+      }
+      // contractTransferContext[hash]
+      //   console.log(log)
+      //   // console.log(log.tokenPriceUSD.AmountInUSD)
+      //   // totalAmountInUSD = totalAmountInUSD + (log.tokenPriceUSD.AmountInUSD ?? 0)
+      // } else {
+      //   console.log('in')
+      // }
+    }
+  }
+
+  for (const tokenAddress of Object.keys(tokenTransferContext)) {
+    if (!moneyFlow[tokenAddress]) {
+      moneyFlow[tokenAddress] = {
+        inUSD: 0,
+        in: 0,
+        outUSD: 0,
+        out: 0,
+        tokenName: ''
+      }
+    }
+    for (const hash of Object.keys(tokenTransferContext[tokenAddress])) {
+      for (const t of tokenTransferContext[tokenAddress][hash]) {
+        if (t.to === address) { // sent in
+          moneyFlow[tokenAddress].inUSD = moneyFlow[tokenAddress].inUSD + (t.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[tokenAddress].in = moneyFlow[tokenAddress].in + Number((t.formattedAmount ?? 0))
+        }
+        if (t.from === address) { // sent out
+
+          moneyFlow[tokenAddress].outUSD = moneyFlow[tokenAddress].outUSD + (t.tokenPriceUSD.AmountInUSD ?? 0)
+          moneyFlow[tokenAddress].out = moneyFlow[tokenAddress].out + Number((t.formattedAmount ?? 0))
+        }
+      }
+
+      // console.log(tokenTransferContext[tokenAddress][hash])
+      // contractTransferContext[hash]
+      // if (log.to, address) { // sent out
+      //   console.log(log)
+      //   // console.log(log.tokenPriceUSD.AmountInUSD)
+      //   // totalAmountInUSD = totalAmountInUSD + (log.tokenPriceUSD.AmountInUSD ?? 0)
+      // } else {
+      //   console.log('in')
+      // }
+    }
+
+  }
+  console.log(moneyFlow)
+
+  return addressContext;
+};

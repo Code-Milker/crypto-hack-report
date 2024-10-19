@@ -25,14 +25,7 @@ const run = async () => {
               const startBlock = transactionInformation.blockNumber;
               const endBlock = await getBlockDaysAhead(startBlock, 15, provider);
               const address = transactionInformation.from.address;
-              await fetchAddressContext(
-                startBlock,
-                endBlock,
-                address,
-                'root',
-                provider,
-                chain.chainInfo,
-              );
+              await fetchAddressContext(startBlock, endBlock, address, provider, chain.chainInfo);
             }
           } catch (e) {
             console.log(e);

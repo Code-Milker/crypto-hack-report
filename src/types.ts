@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import ethers from 'ethers';
 import { WalletInformation, KnownWalletsMap } from './info';
-import { DecodedLogs } from './data/transactions';
+import { DecodedLogs } from './api/rpc';
 export const transactionSchema = z.object({
   hash: z.string().length(66, 'Invalid transaction hash'), // Transaction hash
   to: z.string(), // "to" can be null for contract creation transactions
