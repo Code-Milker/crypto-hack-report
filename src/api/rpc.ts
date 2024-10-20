@@ -94,7 +94,8 @@ export async function decodeMethod(
   const decodedInput = iface.parseTransaction({ data: transaction.data });
 
   if (!decodedInput) {
-    throw new Error('Unable to decode transaction');
+    return null
+    // throw new Error('Unable to decode transaction');
   }
   const methodName = decodedInput.name; // Get the method name
   const func = iface.getFunction(methodName); // Get the function definition from the ABI

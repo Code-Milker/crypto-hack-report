@@ -8,6 +8,7 @@ import {
   fetchTransaction,
   DecodedLogResult,
   getAddressInformation,
+  getBlockDaysAhead,
 } from '../api/rpc';
 import { fetchTokenCoinGeckoData, getTokenId } from '../api/coinGecko';
 import { TokenPriceUSD } from '../dbCalls/coinGeckoData';
@@ -28,6 +29,7 @@ interface NativeTransaction {
   formattedAmount: string;
   /** The price of the token in USD at the time of the transaction. */
   tokenPriceUSD: TokenPriceUSD;
+  transactionDetails: TransactionDetails
 }
 
 /**
@@ -54,6 +56,7 @@ interface TokenTransaction {
   formattedAmount: string;
   /** The decoded log result associated with the transaction (optional). */
   log?: DecodedLogResult;
+  transactionDetails: TransactionDetails
 }
 
 /**
@@ -102,6 +105,7 @@ interface AddressTransactionContext {
   endBlock: number;
   /** The address this context pertains to. */
   address: string;
+  type: string
 }
 
 /**
@@ -131,183 +135,147 @@ const isTransfer = (log: DecodedLogResult) => {
   const isValidTransfer = from?.name === 'from' && to?.name === 'to' && value.name === 'value';
   return isValidTransfer ? { from, to, value } : null;
 };
-
-
-
-/**
- * Initializes the token transfer context.
- */
-const initializeTokenTransferContext = () => {
-  return {} as { [key: string]: { [key: string]: TokenTransaction[] } };
-};
-
-/**
- * Initializes the contract transfer context.
- */
-const initializeContractTransferContext = () => {
-  return {} as { [key: string]: { [key: string]: { contractLogs: TokenTransaction[], methodName: string } } };
-};
-
-/**
- * Processes each transaction and updates the contexts accordingly.
- */
-const processTransaction = async (
-  info: TransactionContext,
-  transaction: TransactionDetails,
-  chain: ChainInfo,
-  provider: ethers.JsonRpcProvider,
-  nativeTransferContext: NativeTransaction[],
-  tokenTransferContext: { [key: string]: { [key: string]: TokenTransaction[] } },
-  contractTransferContext: { [key: string]: { [key: string]: { contractLogs: TokenTransaction[], methodName: string } } },
-  address: string
-) => {
-  if (info.to.type === 'EOA') {
-    await handleNativeTransaction(info, transaction, chain, nativeTransferContext);
-  } else if (info.to.type === 'contract') {
-    if (info.decodedMethod?.methodName === 'transfer') {
-      await handleTokenTransfer(info, chain, tokenTransferContext);
-    } else {
-      await handleContractTransaction(info, provider, chain, contractTransferContext);
-    }
-  }
-};
-
-/**
- * Handles a native transaction and updates the native transfer context.
- */
-const handleNativeTransaction = async (
-  info: TransactionContext,
-  transaction: TransactionDetails,
-  chain: ChainInfo,
-  nativeTransferContext: NativeTransaction[]
-) => {
-  const tokenApiId = await getTokenId(chain.nativeCurrency.symbol.toLowerCase());
-  if (!tokenApiId) return;
-
-  const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
-  nativeTransferContext.push({
-    tokenPriceUSD: {
-      ...tokenPrice,
-      AmountInUSD: Number(tokenPrice.usd) * Number(ethers.formatEther(transaction.value)),
-    },
-    transactionHash: transaction.hash,
-    from: transaction.from,
-    to: transaction.to,
-    value: transaction.value,
-    formattedAmount: ethers.formatEther(transaction.value),
-  });
-};
-
-/**
- * Handles a token transfer transaction and updates the token transfer context.
- */
-const handleTokenTransfer = async (
-  info: TransactionContext,
-  chain: ChainInfo,
-  tokenTransferContext: { [key: string]: { [key: string]: TokenTransaction[] } }
-) => {
-  for (const d of info.decodedLogs?.decodedLogs ?? []) {
-    const transfer = isTransfer(d);
-    if (!transfer) continue;
-
-    if (!tokenTransferContext[info.to.address]) {
-      tokenTransferContext[info.to.address] = {};
-    }
-
-    if (!tokenTransferContext[info.to.address][d.transactionHash]) {
-      tokenTransferContext[info.to.address][d.transactionHash] = [];
-    }
-
-    const tokenApiId = await getTokenId(info.to.tokenInfo?.symbol as string);
-    if (!tokenApiId) continue;
-
-    const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
-    const formattedAmount = ethers.formatUnits(d.data[0].value, Number(info.to.tokenInfo?.decimals));
-    tokenTransferContext[info.to.address][d.transactionHash].push({
-      tokenPriceUSD: {
-        ...tokenPrice,
-        AmountInUSD: Number(tokenPrice.usd) * Number(formattedAmount),
-      },
-      transactionHash: d.transactionHash,
-      tokenName: info.to.tokenInfo?.name,
-      tokenSymbol: info.to.tokenInfo?.symbol,
-      tokenAddress: info.to.address,
-      from: d.topics[0].value,
-      to: d.topics[1].value,
-      value: d.data[0].value,
-      formattedAmount,
-      log: d,
-    });
-  }
-};
-
-/**
- * Handles contract transactions that are not simple transfers.
- */
-const handleContractTransaction = async (
-  info: any,
-  provider: ethers.JsonRpcProvider,
-  chain: ChainInfo,
-  contractTransferContext: { [key: string]: { [key: string]: { contractLogs: TokenTransaction[], methodName: string } } }
-) => {
-  if (!info.decodedLogs?.decodedLogs) return;
-
-  const contractLogs = [];
-  for (const l of info.decodedLogs.decodedLogs) {
-    const transfer = isTransfer(l);
-    if (!transfer) continue;
-
-    const addressInfo = await getAddressInformation(l.address, provider);
-    if (!addressInfo.tokenInfo?.symbol) continue;
-
-    const tokenApiId = await getTokenId(addressInfo.tokenInfo?.symbol);
-    if (!tokenApiId) continue;
-
-    const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
-    const formattedAmount = ethers.formatUnits(transfer.value.value, Number(addressInfo.tokenInfo?.decimals));
-    contractLogs.push({
-      log: l,
-      tokenPriceUSD: {
-        ...tokenPrice,
-        AmountInUSD: Number(tokenPrice.usd) * Number(formattedAmount),
-      },
-      transactionHash: l.transactionHash,
-      tokenName: addressInfo.tokenInfo?.name,
-      tokenSymbol: addressInfo.tokenInfo?.symbol,
-      tokenAddress: addressInfo.address,
-      from: transfer.from.value,
-      to: transfer.to.value,
-      value: transfer.value.value,
-      formattedAmount,
-    });
-  }
-
-  if (!contractTransferContext[info.to.address]) {
-    contractTransferContext[info.to.address] = {};
-  }
-  contractTransferContext[info.to.address][info.transactionHash] = { contractLogs, methodName: info.decodedMethod?.methodName as string };
-};
-
-/**
- * Builds the token flow context from native and token transfers.
- * 
- * @param nativeTransferContext - An array of native transactions (e.g., ETH transfers).
- * @param contractTransferContext - The contract-based token transfer context.
- * @param tokenTransferContext - The context for ERC-20 token transfers.
- * @param address - The address being analyzed.
- * @param chain - The blockchain chain information.
- * @returns A TokenFlow object summarizing the inflow and outflow of tokens.
- */
-const buildTokenFlow = (
-  nativeTransferContext: NativeTransaction[],
-  contractTransferContext: { [key: string]: { [key: string]: { contractLogs: TokenTransaction[], methodName: string } } },
-  tokenTransferContext: { [key: string]: { [key: string]: TokenTransaction[] } },
+export const fetchAddressContext = async (
+  startBlock: number,
+  endBlock: number,
   address: string,
-  chain: ChainInfo
-): TokenFlow => {
-  const tokenFlow: TokenFlow = {};
+  type: string,
+  depth: number,
+  provider: ethers.JsonRpcProvider,
+  chain: ChainInfo,
+): Promise<AddressTransactionContext | null> => {
+  const transactions = await fetchTransactionsForAddress(address, startBlock, endBlock, chain);
+  const tokenTransferContext: {
+    [key: string]: { [key: string]: TokenTransaction[] }
+  } = {};
+  if (depth === 0) {
+    return null
+  }
+  const nativeTransferContext: NativeTransaction[] = [];
+  const contractTransferContext: { [key: string]: { [key: string]: { contractLogs: TokenTransaction[], methodName: string } } } = {};
+  for (const t of transactions) {
+    const info = await fetchTransaction(t.hash, provider, chain);
+    if (info.to.type === 'EOA') {
+      const tokenApiId = await getTokenId(chain.nativeCurrency.symbol.toLowerCase());
+      if (!tokenApiId) {
+        continue;
+      }
+      const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
 
-  // Process native currency transactions (e.g., ETH)
+      nativeTransferContext.push({
+        tokenPriceUSD: {
+          ...tokenPrice,
+          AmountInUSD: Number(tokenPrice.usd) * Number(ethers.formatEther(t.value)),
+        },
+        transactionHash: t.hash,
+        from: t.from,
+        to: t.to,
+        value: t.value,
+        formattedAmount: ethers.formatEther(t.value),
+        transactionDetails: t
+      });
+    }
+
+    if (info.to.type === 'contract' && info.decodedMethod?.methodName === 'transfer') {
+      for (const d of info.decodedLogs?.decodedLogs ?? []) {
+        const from = d.topics[0];
+        const to = d.topics[1];
+        const value = d.data[0];
+        if (from?.name !== 'from' || to?.name !== 'to' || value.name !== 'value') {
+          continue; // not a standard erc-20
+        }
+
+        if (!tokenTransferContext[info.to.address]) {
+          tokenTransferContext[info.to.address] = {
+          }
+        }
+
+        if (!tokenTransferContext[info.to.address][d.transactionHash]) {
+          tokenTransferContext[info.to.address][d.transactionHash] = []
+        }
+
+        const tokenApiId = await getTokenId(info.to.tokenInfo?.symbol as string);
+        if (!tokenApiId) {
+          continue;
+        }
+        const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
+        const formattedAmount = ethers.formatUnits(
+          value.value,
+          Number(info.to.tokenInfo?.decimals),
+        );
+        tokenTransferContext[info.to.address][d.transactionHash].push({
+          tokenPriceUSD: {
+            ...tokenPrice,
+            AmountInUSD: Number(tokenPrice.usd) * Number(formattedAmount),
+          },
+          transactionHash: d.transactionHash,
+          tokenName: info.to.tokenInfo?.name,
+          tokenSymbol: info.to.tokenInfo?.symbol,
+          tokenAddress: info.to.address,
+          from: from.value,
+          to: to.value,
+          value: value.value,
+          formattedAmount,
+          log: d,
+          transactionDetails: t
+        });
+      }
+    } else if (info.to.type === 'contract') {
+      if (!info.decodedLogs?.decodedLogs) {
+        continue;
+      }
+
+      const contractLogs: TokenTransaction[] = []
+      for (const l of info.decodedLogs.decodedLogs) {
+        const transfer = isTransfer(l);
+        if (!transfer) {
+          continue;
+        }
+        if (transfer.to.value !== info.from.address && transfer.from.value !== info.from.address) {
+          continue;
+        }
+
+        const addressInfo = await getAddressInformation(l.address, provider);
+
+        if (!addressInfo.tokenInfo?.symbol) {
+          continue;
+        }
+        const tokenApiId = await getTokenId(addressInfo.tokenInfo?.symbol);
+        if (!tokenApiId) {
+          continue;
+        }
+        const tokenPrice = await fetchTokenCoinGeckoData(tokenApiId.id, chain);
+        const formattedAmount = ethers.formatUnits(
+          transfer.value.value,
+          Number(addressInfo.tokenInfo?.decimals),
+        );
+        contractLogs.push({
+          log: l,
+          tokenPriceUSD: {
+            ...tokenPrice,
+            AmountInUSD: Number(tokenPrice.usd) * Number(formattedAmount),
+          },
+          transactionHash: l.transactionHash,
+          tokenName: addressInfo.tokenInfo?.name,
+          tokenSymbol: addressInfo.tokenInfo?.symbol,
+          tokenAddress: addressInfo.address,
+          from: transfer.from.value,
+          to: transfer.to.value,
+          value: transfer.value.value,
+          formattedAmount,
+          transactionDetails: t
+        });
+      }
+      if (!contractTransferContext[info.to.address]) {
+        contractTransferContext[info.to.address] = {}
+      }
+
+
+      contractTransferContext[info.to.address][info.transactionHash] = { contractLogs, methodName: info.decodedMethod?.methodName as string, }
+    }
+  }
+
+  const tokenFlow: TokenFlow = {}
   for (const transfer of nativeTransferContext) {
     if (!tokenFlow['native']) {
       tokenFlow['native'] = {
@@ -315,131 +283,89 @@ const buildTokenFlow = (
         in: 0,
         outUSD: 0,
         out: 0,
-        tokenName: chain.nativeCurrency.symbol,
-        transactions: [],
-      };
+        tokenName: 'native',
+        transactions: []
+      }
     }
 
-    // Check if the transfer is incoming or outgoing
-    if (transfer.to.toLowerCase() === address.toLowerCase()) {
-      tokenFlow['native'].inUSD += transfer.tokenPriceUSD.AmountInUSD ?? 0;
-      tokenFlow['native'].in += Number(transfer.formattedAmount);
-    } else if (transfer.from.toLowerCase() === address.toLowerCase()) {
-      tokenFlow['native'].outUSD += transfer.tokenPriceUSD.AmountInUSD ?? 0;
-      tokenFlow['native'].out += Number(transfer.formattedAmount);
+    if (transfer.to.toLowerCase() === address.toLowerCase()) { // incoming
+      tokenFlow['native'].inUSD = tokenFlow['native'].inUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+      tokenFlow['native'].in = tokenFlow['native'].in + Number((transfer.formattedAmount ?? 0))
     }
+    if (transfer.from.toLowerCase() === address.toLowerCase()) { // outgoing
+      tokenFlow['native'].outUSD = tokenFlow['native'].outUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+      tokenFlow['native'].out = tokenFlow['native'].out + Number((transfer.formattedAmount ?? 0))
 
-    tokenFlow['native'].transactions.push(transfer);
+    }
+    tokenFlow['native'].transactions.push(transfer)
+    // console.log(native);
   }
-
-  // Process contract-based token transactions
   for (const contractAddress of Object.keys(contractTransferContext)) {
     for (const hash of Object.keys(contractTransferContext[contractAddress])) {
-      for (const transfer of contractTransferContext[contractAddress][hash].contractLogs) {
+      for (const transfer of (contractTransferContext[contractAddress][hash].contractLogs)) {
         if (!tokenFlow[transfer.tokenAddress]) {
           tokenFlow[transfer.tokenAddress] = {
             inUSD: 0,
             in: 0,
             outUSD: 0,
             out: 0,
-            tokenName: transfer.tokenName ?? '',
-            transactions: [],
-          };
+            tokenName: transfer.tokenName as string,
+            transactions: []
+          }
         }
-
-        if (transfer.to.toLowerCase() === address.toLowerCase()) {
-          tokenFlow[transfer.tokenAddress].inUSD += transfer.tokenPriceUSD.AmountInUSD ?? 0;
-          tokenFlow[transfer.tokenAddress].in += Number(transfer.formattedAmount);
-        } else if (transfer.from.toLowerCase() === address.toLowerCase()) {
-          tokenFlow[transfer.tokenAddress].outUSD += transfer.tokenPriceUSD.AmountInUSD ?? 0;
-          tokenFlow[transfer.tokenAddress].out += Number(transfer.formattedAmount);
+        if (transfer.to === address) { // sent in
+          tokenFlow[transfer.tokenAddress].inUSD = tokenFlow[transfer.tokenAddress].inUSD + Number(transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          tokenFlow[transfer.tokenAddress].in = tokenFlow[transfer.tokenAddress].in + Number((transfer.formattedAmount ?? 0))
+          tokenFlow[transfer.tokenAddress].transactions.push(transfer)
         }
-
-        tokenFlow[transfer.tokenAddress].transactions.push(transfer);
+        if (transfer.from === address) { // sent out
+          tokenFlow[transfer.tokenAddress].outUSD = tokenFlow[transfer.tokenAddress].outUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          tokenFlow[transfer.tokenAddress].out = tokenFlow[transfer.tokenAddress].out + Number((transfer.formattedAmount ?? 0))
+          tokenFlow[transfer.tokenAddress].transactions.push(transfer)
+        }
       }
     }
   }
 
-  // Process token transfers in the tokenTransferContext
   for (const tokenAddress of Object.keys(tokenTransferContext)) {
+    if (!tokenFlow[tokenAddress]) {
+      tokenFlow[tokenAddress] = {
+        inUSD: 0,
+        in: 0,
+        outUSD: 0,
+        out: 0,
+        tokenName: '',
+        transactions: []
+      }
+    }
     for (const hash of Object.keys(tokenTransferContext[tokenAddress])) {
       for (const transfer of tokenTransferContext[tokenAddress][hash]) {
-        if (!tokenFlow[tokenAddress]) {
-          tokenFlow[tokenAddress] = {
-            inUSD: 0,
-            in: 0,
-            outUSD: 0,
-            out: 0,
-            tokenName: transfer.tokenName ?? '',
-            transactions: [],
-          };
+        if (transfer.to === address) { // sent in
+          tokenFlow[tokenAddress].inUSD = tokenFlow[tokenAddress].inUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          tokenFlow[tokenAddress].in = tokenFlow[tokenAddress].in + Number((transfer.formattedAmount ?? 0))
+          tokenFlow[tokenAddress].transactions.push(transfer)
         }
-
-        if (transfer.to.toLowerCase() === address.toLowerCase()) {
-          tokenFlow[tokenAddress].inUSD += transfer.tokenPriceUSD.AmountInUSD ?? 0;
-          tokenFlow[tokenAddress].in += Number(transfer.formattedAmount);
-        } else if (transfer.from.toLowerCase() === address.toLowerCase()) {
-          tokenFlow[tokenAddress].outUSD += transfer.tokenPriceUSD.AmountInUSD ?? 0;
-          tokenFlow[tokenAddress].out += Number(transfer.formattedAmount);
+        if (transfer.from === address) { // sent out
+          tokenFlow[tokenAddress].outUSD = tokenFlow[tokenAddress].outUSD + (transfer.tokenPriceUSD.AmountInUSD ?? 0)
+          tokenFlow[tokenAddress].out = tokenFlow[tokenAddress].out + Number((transfer.formattedAmount ?? 0))
+          tokenFlow[tokenAddress].tokenName = transfer.tokenName as string
+          tokenFlow[tokenAddress].transactions.push(transfer)
         }
-
-        tokenFlow[tokenAddress].transactions.push(transfer);
       }
     }
   }
 
-  return tokenFlow;
-};
-
-
-/**
- * Fetches and processes all transactions for a given address in a specified block range.
- * 
- * This function builds a comprehensive summary of token movements (both native and token-based)
- * for the specified address within the given block range. The summary includes total incoming
- * and outgoing values for each token, as well as individual transactions grouped by token address.
- * 
- * The function processes:
- * - Native currency transfers (e.g., ETH) using the `nativeTransferContext`.
- * - Contract-based transfers, including ERC-20 tokens, using the `contractTransferContext`.
- * - Token transfers directly captured in the `tokenTransferContext`.
- * 
- * The aggregated information is used to build a `tokenFlow` object, showing how much value
- * was received and sent out in terms of both token quantities and their equivalent USD value.
- * 
- * @param {number} startBlock - The start block number.
- * @param {number} endBlock - The end block number.
- * @param {string} address - The address to fetch transactions for.
- * @param {ethers.JsonRpcProvider} provider - The JSON RPC provider.
- * @param {ChainInfo} chain - The blockchain chain information.
- * @returns {Promise<AddressTransactionContext>} A promise that resolves to an AddressTransactionContext object, containing
- * all transaction details, token flow, and the summary of incoming and outgoing USD values.
- */
-export const fetchAddressContext = async (
-  startBlock: number,
-  endBlock: number,
-  address: string,
-  provider: ethers.JsonRpcProvider,
-  chain: ChainInfo,
-): Promise<AddressTransactionContext> => {
-  const transactions = await fetchTransactionsForAddress(address, startBlock, endBlock, chain);
-  const tokenTransferContext = initializeTokenTransferContext();
-  const nativeTransferContext: NativeTransaction[] = [];
-  const contractTransferContext = initializeContractTransferContext();
-
-  for (const t of transactions) {
-    const info = await fetchTransaction(t.hash, provider, chain);
-    await processTransaction(info, t, chain, provider, nativeTransferContext, tokenTransferContext, contractTransferContext, address);
+  let totalTokens = 0;
+  let inUSD = 0;
+  let outUSD = 0;
+  for (const key in tokenFlow) {
+    if (tokenFlow.hasOwnProperty(key)) {
+      totalTokens++;
+      inUSD += tokenFlow[key].inUSD;
+      outUSD += tokenFlow[key].outUSD;
+    }
   }
-
-  // Builds a comprehensive summary of token movements (native and token-based) for the given address
-  const tokenFlow = buildTokenFlow(nativeTransferContext, contractTransferContext, tokenTransferContext, address, chain);
-
-  // Calculates the total incoming and outgoing values in USD for all tokens and native currency combined.
-  const { inUSD, outUSD } = calculateTotals(tokenFlow);
-
-  // Constructs the final address context object, which includes all transaction details and the computed token flow.
-  const addressContext: AddressTransactionContext = {
+  let addressContext: AddressTransactionContext = {
     tokenTransferContext,
     nativeTransferContext,
     contractTransferContext,
@@ -448,7 +374,73 @@ export const fetchAddressContext = async (
     startBlock,
     endBlock,
     address,
+    type
   };
+  let nativeStartBlock: number | null = null;
+  let nativeEndBlock: number | null = null;
+  let nativeTos = []
 
-  return addressContext;
-};
+  for (const native of addressContext.nativeTransferContext) {
+    // Check if the transaction is outgoing
+    if (native.from.toLowerCase() === address.toLowerCase()) {
+      const blockNumber = Number(native.transactionDetails.blockNumber);
+      nativeTos.push(native.to.toLowerCase())
+      // Set the lowest block number (nativeStartBlock)
+      if (nativeStartBlock === null || blockNumber < nativeStartBlock) {
+        nativeStartBlock = blockNumber;
+      }
+      // Set the highest block number (nativeEndBlock)
+      if (nativeEndBlock === null || blockNumber > nativeEndBlock) {
+        nativeEndBlock = blockNumber;
+      }
+    }
+  }
+
+  for (const contractAddress of Object.keys(contractTransferContext)) {
+    for (const hash of Object.keys(contractTransferContext[contractAddress])) {
+      for (const transfer of (contractTransferContext[contractAddress][hash].contractLogs)) {
+        // Check if the transaction is outgoing
+        if (transfer.from.toLowerCase() === address.toLowerCase()) {
+          const blockNumber = Number(transfer.transactionDetails.blockNumber);
+          // Set the lowest block number (nativeStartBlock)
+          if (nativeStartBlock === null || blockNumber < nativeStartBlock) {
+            nativeStartBlock = blockNumber;
+          }
+          // Set the highest block number (nativeEndBlock)
+          if (nativeEndBlock === null || blockNumber > nativeEndBlock) {
+            nativeEndBlock = blockNumber;
+          }
+        }
+
+        for (const tokenAddress of Object.keys(tokenTransferContext)) {
+          for (const hash of Object.keys(tokenTransferContext[tokenAddress])) {
+            for (const transfer of tokenTransferContext[tokenAddress][hash]) {
+              // Check if the transaction is outgoing
+              if (transfer.from.toLowerCase() === address.toLowerCase()) {
+                const blockNumber = Number(transfer.transactionDetails.blockNumber);
+                nativeTos.push(transfer.to.toLowerCase())
+                // Set the lowest block number (nativeStartBlock)
+                if (nativeStartBlock === null || blockNumber < nativeStartBlock) {
+                  nativeStartBlock = blockNumber;
+                }
+                // Set the highest block number (nativeEndBlock)
+                if (nativeEndBlock === null || blockNumber > nativeEndBlock) {
+                  nativeEndBlock = blockNumber;
+                }
+              }
+            }
+          }
+          console.log({ nativeStartBlock, nativeEndBlock })
+          // for (const to of nativeTos) {
+          //   if (nativeStartBlock && nativeEndBlock) {
+          //     console.log()
+          //     const child = await fetchAddressContext(nativeStartBlock, nativeEndBlock, to, 'native', depth - 1, provider, chain,)
+          //     // if (child) {
+          //     //   addressContext.children.push(child)
+          //     // }
+          //   }
+          // }
+          console.log('here?')
+          return addressContext;
+        };
+
