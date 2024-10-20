@@ -9,7 +9,7 @@ import {
   TransactionContext,
   transactionSchema,
 } from '../types';
-import { fetchENSName } from '../utils';
+import { delay, fetchENSName } from '../utils';
 import { WalletInformation, KnownWallets } from '../info';
 import { fetchContractAbi } from './etherscan';
 import {
@@ -356,6 +356,7 @@ export const getTokenInfo = async (
   tokenAddress: string,
   provider: ethers.JsonRpcProvider,
 ): Promise<TokenInfo | null> => {
+  await delay(100);
   const contract = new ethers.Contract(
     tokenAddress,
     [
