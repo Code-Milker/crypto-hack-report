@@ -94,7 +94,7 @@ export async function decodeMethod(
   const decodedInput = iface.parseTransaction({ data: transaction.data });
 
   if (!decodedInput) {
-    return null
+    return null;
     // throw new Error('Unable to decode transaction');
   }
   const methodName = decodedInput.name; // Get the method name
